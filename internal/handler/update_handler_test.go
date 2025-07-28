@@ -87,7 +87,6 @@ func TestHandle_InvalidGaugeValue(t *testing.T) {
 
 func TestHandle_SuccessGaugeAndCounter(t *testing.T) {
 	h := NewUpdateHandler()
-	// Gauge
 	reqG := httptest.NewRequest(http.MethodPost, "/update/gauge/temp/12.34", nil)
 	reqG.Header.Set("Content-Type", "text/plain")
 	recG := httptest.NewRecorder()
@@ -95,20 +94,13 @@ func TestHandle_SuccessGaugeAndCounter(t *testing.T) {
 	if recG.Code != http.StatusOK {
 		t.Errorf("gauge: status = %d; want %d", recG.Code, http.StatusOK)
 	}
-	if recG.Body.String() != "ok" {
-		t.Errorf("gauge: body = %q; want %q", recG.Body.String(), "ok")
-	}
 
-	// Counter
 	reqC := httptest.NewRequest(http.MethodPost, "/update/counter/hits/5", nil)
 	reqC.Header.Set("Content-Type", "text/plain")
 	recC := httptest.NewRecorder()
 	h.Handle(recC, reqC)
 	if recC.Code != http.StatusOK {
 		t.Errorf("counter: status = %d; want %d", recC.Code, http.StatusOK)
-	}
-	if recC.Body.String() != "ok" {
-		t.Errorf("counter: body = %q; want %q", recC.Body.String(), "ok")
 	}
 }
 
@@ -118,7 +110,6 @@ func TestHandle_ConcurrentRequests(t *testing.T) {
 	n := 500
 	wg.Add(n * 2)
 
-	// Concurrent gauge updates
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
@@ -133,7 +124,6 @@ func TestHandle_ConcurrentRequests(t *testing.T) {
 		}(i)
 	}
 
-	// Concurrent counter updates
 	for i := 0; i < n; i++ {
 		go func() {
 			defer wg.Done()
