@@ -34,14 +34,11 @@ func TestUpdateGaugeAndGetGauge(t *testing.T) {
 
 func TestUpdateCounterAndGetCounter(t *testing.T) {
 	ms := NewMemStorage()
-	// Before updating, counter should not exist
 	if _, ok := ms.GetCounter("c1"); ok {
 		t.Error("expected counter 'c1' to not exist initially")
 	}
-	// Update counter twice
 	ms.UpdateCounter("c1", 1)
 	ms.UpdateCounter("c1", 4)
-	// Get and compare
 	v, ok := ms.GetCounter("c1")
 	if !ok {
 		t.Error("expected counter 'c1' to exist after updates")
