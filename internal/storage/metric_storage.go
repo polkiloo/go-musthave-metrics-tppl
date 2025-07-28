@@ -1,4 +1,4 @@
-package repository
+package storage
 
 type MetricStorage interface {
 	UpdateGauge(name string, value float64)

@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/polkiloo/go-musthave-metrics-tppl/internal/repository"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/storage"
 )
 
 type MetricService struct {
-	store repository.MetricStorage
+	store storage.MetricStorage
 }
 
 func NewMetricService() *MetricService {
-	return &MetricService{store: repository.NewMemStorage()}
+	return &MetricService{store: storage.NewMemStorage()}
 }
 
 func (s *MetricService) ProcessUpdate(metricType, name, rawValue string) error {
