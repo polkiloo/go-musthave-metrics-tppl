@@ -19,12 +19,12 @@ func TestNewMemStorage_InitialState(t *testing.T) {
 
 func TestUpdateGaugeAndGetGauge(t *testing.T) {
 	ms := NewMemStorage()
-	if _, ok := ms.GetGauge("g1"); ok {
+	if _, err := ms.GetGauge("g1"); err == nil {
 		t.Error("expected gauge 'g1' to not exist initially")
 	}
 	ms.UpdateGauge("g1", 42.5)
-	v, ok := ms.GetGauge("g1")
-	if !ok {
+	v, err := ms.GetGauge("g1")
+	if err != nil {
 		t.Error("expected gauge 'g1' to exist after update")
 	}
 	if v != 42.5 {
@@ -34,13 +34,13 @@ func TestUpdateGaugeAndGetGauge(t *testing.T) {
 
 func TestUpdateCounterAndGetCounter(t *testing.T) {
 	ms := NewMemStorage()
-	if _, ok := ms.GetCounter("c1"); ok {
+	if _, err := ms.GetCounter("c1"); err == nil {
 		t.Error("expected counter 'c1' to not exist initially")
 	}
 	ms.UpdateCounter("c1", 1)
 	ms.UpdateCounter("c1", 4)
-	v, ok := ms.GetCounter("c1")
-	if !ok {
+	v, err := ms.GetCounter("c1")
+	if err != nil {
 		t.Error("expected counter 'c1' to exist after updates")
 	}
 	if v != 5 {
@@ -66,8 +66,8 @@ func TestConcurrentGaugeUpdates(t *testing.T) {
 		}
 	}()
 	wg.Wait()
-	v, ok := ms.GetGauge("gauge")
-	if !ok {
+	v, err := ms.GetGauge("gauge")
+	if err != nil {
 		t.Fatal("expected gauge 'gauge' to exist after concurrent updates")
 	}
 	if v < 0 || v > float64(n) {
@@ -91,8 +91,8 @@ func TestConcurrentCounterUpdates(t *testing.T) {
 	}
 	wg.Wait()
 	expected := int64(nGo * n)
-	v, ok := ms.GetCounter("counter")
-	if !ok {
+	v, err := ms.GetCounter("counter")
+	if err != nil {
 		t.Fatal("expected counter 'counter' to exist after concurrent updates")
 	}
 	if v != expected {

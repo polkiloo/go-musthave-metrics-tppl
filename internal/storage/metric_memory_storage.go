@@ -27,18 +27,24 @@ func (m *MemStorage) UpdateCounter(name string, delta int64) {
 	m.counters[name] += delta
 }
 
-func (m *MemStorage) GetGauge(name string) (float64, bool) {
+func (m *MemStorage) GetGauge(name string) (float64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	v, ok := m.gauges[name]
-	return v, ok
+	if !ok {
+		return 0, ErrMetricNotFound
+	}
+	return v, nil
 }
 
-func (m *MemStorage) GetCounter(name string) (int64, bool) {
+func (m *MemStorage) GetCounter(name string) (int64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	v, ok := m.counters[name]
-	return v, ok
+	if !ok {
+		return 0, ErrMetricNotFound
+	}
+	return v, nil
 }
 
 var _ MetricStorage = NewMemStorage()
