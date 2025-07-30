@@ -76,3 +76,49 @@ func TestProcessUpdate_Concurrent(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestProcessGet_Gauge(t *testing.T) {
+	svc := NewMetricService()
+	_ = svc.ProcessUpdate("gauge", "g1", "2.71")
+
+	val, err := svc.ProcessGetValue("gauge", "g1")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if val != "2.71" {
+		t.Errorf("expected value '2.71', got %q", val)
+	}
+}
+
+func TestProcessGet_Counter(t *testing.T) {
+	svc := NewMetricService()
+	_ = svc.ProcessUpdate("counter", "c1", "42")
+
+	val, err := svc.ProcessGetValue("counter", "c1")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if val != "42" {
+		t.Errorf("expected value '42', got %q", val)
+	}
+}
+
+func TestProcessGet_UnknownType(t *testing.T) {
+	svc := NewMetricService()
+	_, err := svc.ProcessGetValue("unknown", "x")
+	if err == nil {
+		t.Errorf("expected error for unknown metric type, got nil")
+	}
+}
+
+func TestProcessGet_NotFound(t *testing.T) {
+	svc := NewMetricService()
+	_, err := svc.ProcessGetValue("gauge", "not_exist")
+	if err == nil {
+		t.Errorf("expected error for missing gauge, got nil")
+	}
+	_, err = svc.ProcessGetValue("counter", "not_exist")
+	if err == nil {
+		t.Errorf("expected error for missing counter, got nil")
+	}
+}
