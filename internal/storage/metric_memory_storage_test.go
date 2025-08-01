@@ -5,97 +5,145 @@ import (
 	"testing"
 )
 
-func TestNewMemStorage_InitialState(t *testing.T) {
-	ms := NewMemStorage()
-	ms.mu.RLock()
-	if ms.gauges == nil {
-		t.Error("gauges map should be initialized, but got nil")
-	}
-	if ms.counters == nil {
-		t.Error("counters map should be initialized, but got nil")
-	}
-	ms.mu.RUnlock()
-}
-
-func TestUpdateGaugeAndGetGauge(t *testing.T) {
-	ms := NewMemStorage()
-	if _, err := ms.GetGauge("g1"); err == nil {
-		t.Error("expected gauge 'g1' to not exist initially")
-	}
-	ms.UpdateGauge("g1", 42.5)
-	v, err := ms.GetGauge("g1")
+func TestMemStorage_UpdateAndGetGauge(t *testing.T) {
+	m := NewMemStorage()
+	m.UpdateGauge("cpu", 2.3)
+	val, err := m.GetGauge("cpu")
 	if err != nil {
-		t.Error("expected gauge 'g1' to exist after update")
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if v != 42.5 {
-		t.Errorf("got gauge value %v; want 42.5", v)
+	if val != 2.3 {
+		t.Errorf("got %v, want %v", val, 2.3)
 	}
 }
 
-func TestUpdateCounterAndGetCounter(t *testing.T) {
-	ms := NewMemStorage()
-	if _, err := ms.GetCounter("c1"); err == nil {
-		t.Error("expected counter 'c1' to not exist initially")
+func TestMemStorage_GetGauge_NotFound(t *testing.T) {
+	m := NewMemStorage()
+	_, err := m.GetGauge("notfound")
+	if err != ErrMetricNotFound {
+		t.Errorf("expected ErrMetricNotFound, got %v", err)
 	}
-	ms.UpdateCounter("c1", 1)
-	ms.UpdateCounter("c1", 4)
-	v, err := ms.GetCounter("c1")
+}
+
+func TestMemStorage_UpdateAndGetCounter(t *testing.T) {
+	m := NewMemStorage()
+	m.UpdateCounter("hits", 5)
+	val, err := m.GetCounter("hits")
 	if err != nil {
-		t.Error("expected counter 'c1' to exist after updates")
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if v != 5 {
-		t.Errorf("got counter value %d; want 5", v)
+	if val != 5 {
+		t.Errorf("got %v, want %v", val, 5)
 	}
 }
 
-func TestConcurrentGaugeUpdates(t *testing.T) {
-	ms := NewMemStorage()
+func TestMemStorage_UpdateCounter_Accumulation(t *testing.T) {
+	m := NewMemStorage()
+	m.UpdateCounter("hits", 2)
+	m.UpdateCounter("hits", 3)
+	val, err := m.GetCounter("hits")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val != 5 {
+		t.Errorf("got %v, want %v", val, 5)
+	}
+}
+
+func TestMemStorage_GetCounter_NotFound(t *testing.T) {
+	m := NewMemStorage()
+	_, err := m.GetCounter("nope")
+	if err != ErrMetricNotFound {
+		t.Errorf("expected ErrMetricNotFound, got %v", err)
+	}
+}
+
+func TestMemStorage_OverwriteGauge(t *testing.T) {
+	m := NewMemStorage()
+	m.UpdateGauge("temp", 1.0)
+	m.UpdateGauge("temp", 7.5)
+	val, err := m.GetGauge("temp")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val != 7.5 {
+		t.Errorf("got %v, want %v", val, 7.5)
+	}
+}
+
+func TestMemStorage_ConcurrentAccess(t *testing.T) {
+	m := NewMemStorage()
+	const n = 100
 	var wg sync.WaitGroup
-	n := 1000
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < n; i++ {
-			ms.UpdateGauge("gauge", float64(i))
-		}
-	}()
-	go func() {
-		defer wg.Done()
-		for i := 0; i < n; i++ {
-			ms.UpdateGauge("gauge", float64(n-i))
-		}
-	}()
+
+	// Gauges: параллельная запись и чтение
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(val float64) {
+			defer wg.Done()
+			m.UpdateGauge("g", val)
+		}(float64(i))
+	}
 	wg.Wait()
-	v, err := ms.GetGauge("gauge")
+	v, err := m.GetGauge("g")
 	if err != nil {
-		t.Fatal("expected gauge 'gauge' to exist after concurrent updates")
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if v < 0 || v > float64(n) {
-		t.Errorf("gauge value out of expected range: got %v", v)
+	if v < 0 || v >= float64(n) {
+		t.Errorf("unexpected gauge value after concurrency: %v", v)
 	}
-}
 
-func TestConcurrentCounterUpdates(t *testing.T) {
-	ms := NewMemStorage()
-	var wg sync.WaitGroup
-	n := 1000
-	nGo := 5
-	wg.Add(nGo)
-	for g := 0; g < nGo; g++ {
+	// Counters: параллельный инкремент
+	wg = sync.WaitGroup{}
+	for i := 0; i < n; i++ {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for i := 0; i < n; i++ {
-				ms.UpdateCounter("counter", 1)
-			}
+			m.UpdateCounter("c", 1)
 		}()
 	}
 	wg.Wait()
-	expected := int64(nGo * n)
-	v, err := ms.GetCounter("counter")
+	count, err := m.GetCounter("c")
 	if err != nil {
-		t.Fatal("expected counter 'counter' to exist after concurrent updates")
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if v != expected {
-		t.Errorf("got counter value %d; want %d", v, expected)
+	if count != int64(n) {
+		t.Errorf("counter got %v, want %v", count, n)
+	}
+}
+
+func TestNumMemStorage_AddFloatAndInt(t *testing.T) {
+	g := NewNumMemStorage[float64]()
+	g.Add("f", 1.2)
+	g.Add("f", 2.3)
+	val, err := g.Get("f")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val != 3.5 {
+		t.Errorf("got %v, want 3.5", val)
+	}
+
+	c := NewNumMemStorage[int64]()
+	c.Add("i", 2)
+	c.Add("i", 5)
+	ival, err := c.Get("i")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ival != 7 {
+		t.Errorf("got %v, want 7", ival)
+	}
+}
+
+func TestMemStorage_InitialState(t *testing.T) {
+	m := NewMemStorage()
+	_, err := m.GetGauge("new")
+	if err != ErrMetricNotFound {
+		t.Errorf("expected ErrMetricNotFound for new gauge, got %v", err)
+	}
+	_, err = m.GetCounter("new")
+	if err != ErrMetricNotFound {
+		t.Errorf("expected ErrMetricNotFound for new counter, got %v", err)
 	}
 }
