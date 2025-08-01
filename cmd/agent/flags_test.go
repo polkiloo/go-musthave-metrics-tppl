@@ -114,3 +114,17 @@ func TestParseFlags_UnknownArgs(t *testing.T) {
 	_, err := parseFlags()
 	assert.ErrorIs(t, err, ErrUnknownAddress)
 }
+
+func TestArgsToAppConfig(t *testing.T) {
+	args := Args{
+		Host:           "example.com",
+		Port:           123,
+		ReportInterval: 5 * time.Second,
+		PollInterval:   1 * time.Second,
+	}
+	cfg := args.ToAppConfig()
+	assert.Equal(t, args.Host, cfg.Host)
+	assert.Equal(t, args.Port, cfg.Port)
+	assert.Equal(t, args.ReportInterval, cfg.ReportInterval)
+	assert.Equal(t, args.PollInterval, cfg.PollInterval)
+}

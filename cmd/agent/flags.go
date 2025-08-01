@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
 )
 
 var (
@@ -90,4 +92,13 @@ func parseFlags() (Args, error) {
 	}
 
 	return args, nil
+}
+
+func (a Args) ToAppConfig() agent.AppConfig {
+	return agent.AppConfig{
+		Host:           a.Host,
+		Port:           a.Port,
+		ReportInterval: a.ReportInterval,
+		PollInterval:   a.PollInterval,
+	}
 }
