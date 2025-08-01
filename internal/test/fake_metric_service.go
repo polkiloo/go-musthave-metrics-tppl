@@ -1,7 +1,9 @@
-package service
+package test
 
 import (
 	models "github.com/polkiloo/go-musthave-metrics-tppl/internal/model"
+
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 )
 
 type FakeMetricService struct {
@@ -24,4 +26,4 @@ func (f *FakeMetricService) ProcessGetValue(metricType models.MetricType, name s
 	return f.MValue, f.Err
 }
 
-var _ MetricServiceInterface = &FakeMetricService{}
+var _ service.MetricServiceInterface = &FakeMetricService{}

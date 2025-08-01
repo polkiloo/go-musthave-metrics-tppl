@@ -9,11 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 	models "github.com/polkiloo/go-musthave-metrics-tppl/internal/model"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 )
 
 func TestUpdate_NameEmpty(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	fs := &service.FakeMetricService{}
+	fs := &test.FakeMetricService{}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
@@ -36,7 +37,7 @@ func TestUpdate_NameEmpty(t *testing.T) {
 func TestUpdate_ServiceError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	expErr := errors.New("run error")
-	fs := &service.FakeMetricService{Err: expErr}
+	fs := &test.FakeMetricService{Err: expErr}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
@@ -62,7 +63,7 @@ func TestUpdate_ServiceError(t *testing.T) {
 
 func TestUpdate_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	fs := &service.FakeMetricService{Err: nil}
+	fs := &test.FakeMetricService{Err: nil}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
@@ -88,7 +89,7 @@ func TestUpdate_Success(t *testing.T) {
 
 func TestUpdate_UnknownMetricType(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	fs := &service.FakeMetricService{Err: service.ErrUnknownMetricType}
+	fs := &test.FakeMetricService{Err: service.ErrUnknownMetricType}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()

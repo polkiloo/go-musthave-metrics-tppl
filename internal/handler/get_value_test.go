@@ -9,11 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 	models "github.com/polkiloo/go-musthave-metrics-tppl/internal/model"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 )
 
 func TestGetValue_NameEmpty(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	fs := &service.FakeMetricService{Err: service.ErrUnknownMetricType}
+	fs := &test.FakeMetricService{Err: service.ErrUnknownMetricType}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
@@ -31,7 +32,7 @@ func TestGetValue_NameEmpty(t *testing.T) {
 
 func TestGetValue_UnknownMetricType(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	fs := &service.FakeMetricService{Err: service.ErrUnknownMetricType}
+	fs := &test.FakeMetricService{Err: service.ErrUnknownMetricType}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
@@ -51,7 +52,7 @@ func TestGetValue_ServiceError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	expErr := errors.New("some error")
-	fs := &service.FakeMetricService{Err: expErr}
+	fs := &test.FakeMetricService{Err: expErr}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
@@ -70,7 +71,7 @@ func TestGetValue_ServiceError(t *testing.T) {
 func TestGetValue_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	fs := &service.FakeMetricService{MValue: "123"}
+	fs := &test.FakeMetricService{MValue: "123"}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
@@ -92,7 +93,7 @@ func TestGetValue_Success(t *testing.T) {
 func TestGetValue_MetricNotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	fs := &service.FakeMetricService{Err: service.ErrMetricNotFound}
+	fs := &test.FakeMetricService{Err: service.ErrMetricNotFound}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
