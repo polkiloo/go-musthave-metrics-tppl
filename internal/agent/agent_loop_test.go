@@ -31,7 +31,13 @@ func TestAgentLoopSleep_Basic(t *testing.T) {
 	c := &mockCollector{}
 	s := &mockSender{}
 
-	agent.AgentLoopSleep(c, s, 2*time.Millisecond, 5*time.Millisecond, 10)
+	cfg := agent.AgentLoopConfig{
+		PollInterval:   2 * time.Millisecond,
+		ReportInterval: 5 * time.Millisecond,
+		Iterations:     10,
+	}
+
+	agent.AgentLoopSleep(c, s, cfg)
 
 	assert.GreaterOrEqual(t, atomic.LoadInt32(&c.collects), int32(10))
 	assert.Greater(t, atomic.LoadInt32(&s.sends), int32(0))
@@ -43,7 +49,12 @@ func TestAgentLoopSleep_ZeroIterations(t *testing.T) {
 	done := make(chan struct{})
 
 	go func() {
-		agent.AgentLoopSleep(c, s, 1*time.Millisecond, 2*time.Millisecond, 0)
+		cfg := agent.AgentLoopConfig{
+			PollInterval:   1 * time.Millisecond,
+			ReportInterval: 2 * time.Millisecond,
+			Iterations:     0,
+		}
+		agent.AgentLoopSleep(c, s, cfg)
 		close(done)
 	}()
 	select {
@@ -56,6 +67,13 @@ func TestAgentLoopSleep_ZeroIterations(t *testing.T) {
 func TestAgentLoopSleep_ReportIntervalLongerThanLoop(t *testing.T) {
 	c := &mockCollector{}
 	s := &mockSender{}
-	agent.AgentLoopSleep(c, s, 1*time.Millisecond, 100*time.Millisecond, 3)
+
+	cfg := agent.AgentLoopConfig{
+		PollInterval:   1 * time.Millisecond,
+		ReportInterval: 100 * time.Millisecond,
+		Iterations:     3,
+	}
+	agent.AgentLoopSleep(c, s, cfg)
+
 	assert.Equal(t, int32(0), atomic.LoadInt32(&s.sends))
 }

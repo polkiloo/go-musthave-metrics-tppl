@@ -17,8 +17,14 @@ func main() {
 	// 	log.Printf("config error: %v, using defaults", err)
 	// }
 
+	cfg := agent.AgentLoopConfig{
+		PollInterval:   args.PollInterval,
+		ReportInterval: args.ReportInterval,
+		Iterations:     0,
+	}
+
 	collector := agent.NewCollector()
 	sender := agent.NewSender("http://"+args.Host, args.Port)
-	agent.AgentLoopSleep(collector, sender, args.PollInterval, args.ReportInterval, 0)
+	agent.AgentLoopSleep(collector, sender, cfg)
 
 }

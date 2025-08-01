@@ -4,23 +4,27 @@ import (
 	"time"
 )
 
+type AgentLoopConfig struct {
+	PollInterval   time.Duration
+	ReportInterval time.Duration
+	Iterations     int // 0 — бесконечно
+}
+
 func AgentLoopSleep(
 	collector CollectorInterface,
 	sender SenderInterface,
-	pollInterval time.Duration,
-	reportInterval time.Duration,
-	iterations int, // 0 — бесконечно
+	cfg AgentLoopConfig,
 ) {
 	lastReport := time.Now()
 	i := 0
-	for iterations == 0 || i < iterations {
+	for cfg.Iterations == 0 || i < cfg.Iterations {
 		collector.Collect()
-		if time.Since(lastReport) >= reportInterval {
+		if time.Since(lastReport) >= cfg.ReportInterval {
 			g, c := collector.Snapshot()
 			sender.Send(g, c)
 			lastReport = time.Now()
 		}
-		time.Sleep(pollInterval)
+		time.Sleep(cfg.PollInterval)
 		i++
 	}
 }
