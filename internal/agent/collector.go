@@ -19,6 +19,42 @@ type Collector struct {
 	Counters map[string]models.Counter
 }
 
+type MetricGetter[T any] func(*runtime.MemStats) T
+
+var gaugeGetters = map[string]MetricGetter[models.Gauge]{
+	"Alloc":         func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.Alloc) },
+	"BuckHashSys":   func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.BuckHashSys) },
+	"Frees":         func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.Frees) },
+	"GCCPUFraction": func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.GCCPUFraction) },
+	"GCSys":         func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.GCSys) },
+	"HeapAlloc":     func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.HeapAlloc) },
+	"HeapIdle":      func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.HeapIdle) },
+	"HeapInuse":     func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.HeapInuse) },
+	"HeapObjects":   func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.HeapObjects) },
+	"HeapReleased":  func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.HeapReleased) },
+	"HeapSys":       func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.HeapSys) },
+	"LastGC":        func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.LastGC) },
+	"Lookups":       func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.Lookups) },
+	"MCacheInuse":   func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.MCacheInuse) },
+	"MCacheSys":     func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.MCacheSys) },
+	"MSpanInuse":    func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.MSpanInuse) },
+	"MSpanSys":      func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.MSpanSys) },
+	"Mallocs":       func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.Mallocs) },
+	"NextGC":        func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.NextGC) },
+	"NumForcedGC":   func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.NumForcedGC) },
+	"NumGC":         func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.NumGC) },
+	"OtherSys":      func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.OtherSys) },
+	"PauseTotalNs":  func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.PauseTotalNs) },
+	"StackInuse":    func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.StackInuse) },
+	"StackSys":      func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.StackSys) },
+	"Sys":           func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.Sys) },
+	"TotalAlloc":    func(m *runtime.MemStats) models.Gauge { return models.Gauge(m.TotalAlloc) },
+}
+
+var counterGetters = map[string]MetricGetter[models.Counter]{
+	"PollCount": func(_ *runtime.MemStats) models.Counter { return 1 },
+}
+
 func NewCollector() *Collector {
 	return &Collector{
 		Gauges:   make(map[string]models.Gauge),
@@ -33,67 +69,12 @@ func (c *Collector) Collect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for _, metric := range models.RuntimeMetrics {
-		switch metric.Name {
-		case "Alloc":
-			c.Gauges[metric.Name] = models.Gauge(rtm.Alloc)
-		case "BuckHashSys":
-			c.Gauges[metric.Name] = models.Gauge(rtm.BuckHashSys)
-		case "Frees":
-			c.Gauges[metric.Name] = models.Gauge(rtm.Frees)
-		case "GCCPUFraction":
-			c.Gauges[metric.Name] = models.Gauge(rtm.GCCPUFraction)
-		case "GCSys":
-			c.Gauges[metric.Name] = models.Gauge(rtm.GCSys)
-		case "HeapAlloc":
-			c.Gauges[metric.Name] = models.Gauge(rtm.HeapAlloc)
-		case "HeapIdle":
-			c.Gauges[metric.Name] = models.Gauge(rtm.HeapIdle)
-		case "HeapInuse":
-			c.Gauges[metric.Name] = models.Gauge(rtm.HeapInuse)
-		case "HeapObjects":
-			c.Gauges[metric.Name] = models.Gauge(rtm.HeapObjects)
-		case "HeapReleased":
-			c.Gauges[metric.Name] = models.Gauge(rtm.HeapReleased)
-		case "HeapSys":
-			c.Gauges[metric.Name] = models.Gauge(rtm.HeapSys)
-		case "LastGC":
-			c.Gauges[metric.Name] = models.Gauge(rtm.LastGC)
-		case "Lookups":
-			c.Gauges[metric.Name] = models.Gauge(rtm.Lookups)
-		case "MCacheInuse":
-			c.Gauges[metric.Name] = models.Gauge(rtm.MCacheInuse)
-		case "MCacheSys":
-			c.Gauges[metric.Name] = models.Gauge(rtm.MCacheSys)
-		case "MSpanInuse":
-			c.Gauges[metric.Name] = models.Gauge(rtm.MSpanInuse)
-		case "MSpanSys":
-			c.Gauges[metric.Name] = models.Gauge(rtm.MSpanSys)
-		case "Mallocs":
-			c.Gauges[metric.Name] = models.Gauge(rtm.Mallocs)
-		case "NextGC":
-			c.Gauges[metric.Name] = models.Gauge(rtm.NextGC)
-		case "NumForcedGC":
-			c.Gauges[metric.Name] = models.Gauge(rtm.NumForcedGC)
-		case "NumGC":
-			c.Gauges[metric.Name] = models.Gauge(rtm.NumGC)
-		case "OtherSys":
-			c.Gauges[metric.Name] = models.Gauge(rtm.OtherSys)
-		case "PauseTotalNs":
-			c.Gauges[metric.Name] = models.Gauge(rtm.PauseTotalNs)
-		case "StackInuse":
-			c.Gauges[metric.Name] = models.Gauge(rtm.StackInuse)
-		case "StackSys":
-			c.Gauges[metric.Name] = models.Gauge(rtm.StackSys)
-		case "Sys":
-			c.Gauges[metric.Name] = models.Gauge(rtm.Sys)
-		case "TotalAlloc":
-			c.Gauges[metric.Name] = models.Gauge(rtm.TotalAlloc)
-		case "RandomValue":
-			c.Gauges[metric.Name] = models.Gauge(rand.Float64() * 100)
-		case "PollCount":
-			c.Counters[metric.Name]++
-		}
+	for name, getter := range gaugeGetters {
+		c.Gauges[name] = getter(&rtm)
+	}
+	c.Gauges["RandomValue"] = models.Gauge(rand.Float64() * 100)
+	for name, getter := range counterGetters {
+		c.Counters[name] += getter(&rtm)
 	}
 }
 
