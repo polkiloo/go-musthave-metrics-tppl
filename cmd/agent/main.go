@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
 )
@@ -11,7 +10,6 @@ func main() {
 	args, err := parseFlags()
 	if err != nil {
 		log.Fatalf("Error parsing: %v", err)
-		os.Exit(2)
 	}
 
 	// cfg, err := config.LoadAgentConfig("config.yaml")

@@ -74,7 +74,8 @@ func parseFlags() (Args, error) {
 		args.PollInterval = time.Duration(sec) * time.Second
 	}
 
-	if *addressFlag != "" {
+	if *addressFlag != defaultAddress {
+
 		addr := *addressFlag
 		host, portStr, err := net.SplitHostPort(addr)
 		if err != nil || host == "" || portStr == "" {
