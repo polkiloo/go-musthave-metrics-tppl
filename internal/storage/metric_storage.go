@@ -3,7 +3,7 @@ package storage
 import "fmt"
 
 var (
-	ErrMetricNotFound = fmt.Errorf("unknown metric type")
+	ErrMetricNotFound = fmt.Errorf("metric not found")
 )
 
 type MetricStorage interface {
