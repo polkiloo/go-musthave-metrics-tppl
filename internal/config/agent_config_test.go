@@ -20,7 +20,8 @@ func writeTempFile(t *testing.T, content string) string {
 
 func TestLoadConfig_ValidFullConfig(t *testing.T) {
 	content := `
-server_address: http://test-server:9000
+host: test-server
+port: 9000
 poll_interval: 5s
 report_interval: 20s
 `
@@ -28,7 +29,8 @@ report_interval: 20s
 
 	cfg, err := config.LoadAgentConfig(path)
 	assert.NoError(t, err)
-	assert.Equal(t, "http://test-server:9000", cfg.ServerAddress)
+	assert.Equal(t, "test-server", cfg.Host)
+	assert.Equal(t, 9000, cfg.Port)
 	assert.Equal(t, 5*time.Second, cfg.PollInterval)
 	assert.Equal(t, 20*time.Second, cfg.ReportInterval)
 }
@@ -41,7 +43,8 @@ poll_interval: 3s
 
 	cfg, err := config.LoadAgentConfig(path)
 	assert.NoError(t, err)
-	assert.Equal(t, "http://localhost:8080", cfg.ServerAddress)
+	assert.Equal(t, "localhost", cfg.Host)
+	assert.Equal(t, 8080, cfg.Port)
 	assert.Equal(t, 3*time.Second, cfg.PollInterval)
 	assert.Equal(t, 10*time.Second, cfg.ReportInterval)
 }

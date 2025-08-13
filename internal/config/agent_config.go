@@ -4,19 +4,22 @@ import (
 	"os"
 	"time"
 
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
 	"gopkg.in/yaml.v3"
 )
 
 type AgentConfig struct {
-	ServerAddress  string        `yaml:"server_address"`
+	Host           string        `yaml:"host"`
+	Port           int           `yaml:"port"`
 	PollInterval   time.Duration `yaml:"poll_interval"`
 	ReportInterval time.Duration `yaml:"report_interval"`
 }
 
 var DefaultConfig = AgentConfig{
-	ServerAddress:  "http://localhost:8080",
-	PollInterval:   2 * time.Second,
-	ReportInterval: 10 * time.Second,
+	Host:           agent.DefaultAppConfig.Host,
+	Port:           agent.DefaultAppConfig.Port,
+	PollInterval:   agent.DefaultAppConfig.PollInterval,
+	ReportInterval: agent.DefaultAppConfig.ReportInterval,
 }
 
 func LoadAgentConfig(path string) (AgentConfig, error) {

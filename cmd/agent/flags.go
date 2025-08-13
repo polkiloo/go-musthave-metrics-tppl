@@ -6,37 +6,26 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
 )
 
 var (
-	ErrUnknownAddress           = fmt.Errorf("unknown address")
-	ErrParseAddressFlags        = fmt.Errorf("error parsing address")
-	ErrParseReportIntervalFlags = fmt.Errorf("error parsing report interval")
-	ErrParsePollIntervalFlags   = fmt.Errorf("error parsing poll interval flags")
+	ErrUnknownArgs = fmt.Errorf("unknown args")
 )
 
-type Args struct {
-	Host           string
-	Port           int
-	ReportInterval time.Duration
-	PollInterval   time.Duration
+type FlagsArg struct {
+	Host              string // "" если не задано
+	Port              *int   // nil если не задано
+	ReportIntervalSec *int   // nil если не задано
+	PollIntervalSec   *int   // nil если не задано
 }
 
-const (
-	defaultHost           = "localhost"
-	defaultPort           = 8080
-	defaultReportInterval = 10 * time.Second
-	defaultPollInterval   = 2 * time.Second
-)
-
 var (
-	defaultAddress = defaultHost + ":" + strconv.Itoa(defaultPort)
+	defaultAddress = agent.DefaultAppHost + ":" + strconv.Itoa(agent.DefaultAppPort)
 )
 
-func parseFlags() (Args, error) {
+func parseFlags() (FlagsArg, error) {
 	addressFlag := flag.String("a", defaultAddress, "HTTP endpoint (e.g, localhost:8080)")
 	reportFlag := flag.String("r", "", "reportInterval in seconds (default 10 seconds)")
 	pollFlag := flag.String("p", "", "pollInterval in seconds (default 2 seconds)")
@@ -49,56 +38,42 @@ func parseFlags() (Args, error) {
 
 	if len(flag.Args()) > 0 {
 		fmt.Fprintf(os.Stderr, "unknown args: %v\n", flag.Args())
-		return Args{}, ErrUnknownAddress
+		return FlagsArg{}, ErrUnknownArgs
 	}
 
-	args := Args{
-		Host:           defaultHost,
-		Port:           defaultPort,
-		ReportInterval: defaultReportInterval,
-		PollInterval:   defaultPollInterval,
-	}
+	args := FlagsArg{}
 
 	if *reportFlag != "" {
 		sec, err := strconv.Atoi(*reportFlag)
 		if err != nil || sec <= 0 {
 			fmt.Fprintf(os.Stderr, "incorrect value for -r (reportInterval): %v\n", *reportFlag)
-			return Args{}, ErrParseReportIntervalFlags
 		}
-		args.ReportInterval = time.Duration(sec) * time.Second
+		args.ReportIntervalSec = &sec
 	}
 	if *pollFlag != "" {
 		sec, err := strconv.Atoi(*pollFlag)
 		if err != nil || sec <= 0 {
 			fmt.Fprintf(os.Stderr, "incorrect value for -p (pollInterval): %v\n", *pollFlag)
-			return Args{}, ErrParsePollIntervalFlags
 		}
-		args.PollInterval = time.Duration(sec) * time.Second
+		args.PollIntervalSec = &sec
 	}
 
 	if *addressFlag != defaultAddress {
 
 		addr := *addressFlag
 		host, portStr, err := net.SplitHostPort(addr)
-		if err != nil || host == "" || portStr == "" {
-			return Args{}, ErrParseAddressFlags
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "incorrect value for -a (HTTP addres): %v\n", *addressFlag)
 		}
+
 		port, err := strconv.Atoi(portStr)
-		if err != nil || port <= 0 {
-			return Args{}, ErrParseAddressFlags
+		if err == nil && port > 0 {
+			args.Port = &port
 		}
+
 		args.Host = host
-		args.Port = port
+
 	}
 
 	return args, nil
-}
-
-func (a Args) ToAppConfig() agent.AppConfig {
-	return agent.AppConfig{
-		Host:           a.Host,
-		Port:           a.Port,
-		ReportInterval: a.ReportInterval,
-		PollInterval:   a.PollInterval,
-	}
 }
