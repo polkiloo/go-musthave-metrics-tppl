@@ -76,7 +76,6 @@ func TestMemStorage_ConcurrentAccess(t *testing.T) {
 	const n = 100
 	var wg sync.WaitGroup
 
-	// Gauges: параллельная запись и чтение
 	for i := 0; i < n; i++ {
 		wg.Add(1)
 		go func(val float64) {
@@ -93,7 +92,6 @@ func TestMemStorage_ConcurrentAccess(t *testing.T) {
 		t.Errorf("unexpected gauge value after concurrency: %v", v)
 	}
 
-	// Counters: параллельный инкремент
 	wg = sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)

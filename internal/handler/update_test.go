@@ -105,11 +105,9 @@ func TestUpdate_UnknownMetricType(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400 for unknown metric type, got %d", w.Code)
 	}
-	// body should be empty
 	if body := w.Body.String(); body != "" {
 		t.Errorf("expected empty body for unknown type, got %q", body)
 	}
-	// service called with raw metricType
 	if fs.MType != models.MetricType("badtype") {
 		t.Errorf("service called with type %v; want badtype", fs.MType)
 	}

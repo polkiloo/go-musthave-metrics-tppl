@@ -12,6 +12,23 @@ type AppConfig struct {
 	Port           int
 	ReportInterval time.Duration
 	PollInterval   time.Duration
+	LoopIterations int
+}
+
+const (
+	DefaultAppHost           = "localhost"
+	DefaultAppPort           = 8080
+	DefaultAppReportInterval = 10 * time.Second
+	DefaultAppPollInterval   = 2 * time.Second
+	DefaultLoopIterations    = 0
+)
+
+var DefaultAppConfig = AppConfig{
+	Host:           DefaultAppHost,
+	Port:           DefaultAppPort,
+	PollInterval:   DefaultAppPollInterval,
+	ReportInterval: DefaultAppReportInterval,
+	LoopIterations: DefaultLoopIterations,
 }
 
 func ProvideCollector() CollectorInterface {
@@ -26,7 +43,7 @@ func ProvideConfig(args AppConfig) AgentLoopConfig {
 	return AgentLoopConfig{
 		PollInterval:   args.PollInterval,
 		ReportInterval: args.ReportInterval,
-		Iterations:     0,
+		Iterations:     args.LoopIterations,
 	}
 }
 
