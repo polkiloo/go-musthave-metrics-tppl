@@ -2,10 +2,10 @@ package server
 
 import (
 	"context"
-	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"go.uber.org/fx"
 )
 
@@ -30,23 +30,24 @@ func newEngine() *gin.Engine {
 
 var (
 	engineRunner = func(r *gin.Engine, addr string) error { return r.Run(addr) }
-	logPrintf    = func(format string, v ...any) { log.Printf(format, v...) }
-	logFatalf    = func(format string, v ...any) { log.Fatalf(format, v...) }
 )
 
-func run(lc fx.Lifecycle, r *gin.Engine, cfg *AppConfig) {
+func run(lc fx.Lifecycle, r *gin.Engine, cfg *AppConfig, l logger.Logger) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			go func() {
 				addr := cfg.Host + ":" + strconv.Itoa(cfg.Port)
-				logPrintf("Server listening on http://%s", addr)
+				l.WriteInfo("server listening", "addr", "http://"+addr)
+
 				if err := engineRunner(r, addr); err != nil {
-					logFatalf("Server failed: %v", err)
+					l.WriteError("server failed", "error", err)
 				}
 			}()
 			return nil
 		},
-		OnStop: func(ctx context.Context) error { return nil },
+		OnStop: func(ctx context.Context) error {
+			return l.Sync()
+		},
 	})
 }
 

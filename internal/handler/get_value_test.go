@@ -108,7 +108,6 @@ func TestGetValue_MetricNotFound(t *testing.T) {
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404 NotFound on metric not found, got %d", w.Code)
 	}
-	// service should have been called
 	if fs.MName != "missing" {
 		t.Errorf("service called with wrong name %q", fs.MName)
 	}

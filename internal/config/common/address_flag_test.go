@@ -58,7 +58,6 @@ func TestParseAddressFlag_ValidIPv6Bracketed(t *testing.T) {
 }
 
 func TestParseAddressFlag_Invalid_NoPortPart(t *testing.T) {
-	// отсутствует двоеточие -> SplitHostPort вернёт ошибку
 	_, err := ParseAddressFlag("localhost", true)
 	if !errors.Is(err, ErrInvalidAddress) {
 		t.Fatalf("want ErrInvalidAddress, got %v", err)
@@ -66,7 +65,6 @@ func TestParseAddressFlag_Invalid_NoPortPart(t *testing.T) {
 }
 
 func TestParseAddressFlag_Invalid_EmptyPort(t *testing.T) {
-	// "localhost:" -> host есть, portStr пуст -> ErrInvalidPort
 	_, err := ParseAddressFlag("localhost:", true)
 	if !errors.Is(err, ErrInvalidPort) {
 		t.Fatalf("want ErrInvalidPort, got %v", err)

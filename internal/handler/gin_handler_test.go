@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 	"go.uber.org/fx"
 )
 
@@ -36,7 +38,6 @@ func TestRegisterRoutes_RegistersExpectedEndpoints(t *testing.T) {
 	r := gin.New()
 	h := NewGinHandler()
 
-	// вызов функции, которую мы тестируем
 	RegisterRoutes(r, h)
 
 	if !hasRoute(r, "POST", "/update/:type/:name/:value") {
@@ -51,9 +52,11 @@ func TestModule_WiringIsValid(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	err := fx.ValidateApp(
-		fx.NopLogger,
-		// Предоставляем *gin.Engine для invoke(register)
 		fx.Provide(func() *gin.Engine { return gin.New() }),
+		fx.Supply(
+			fx.Annotate(&test.FakeLogger{}, fx.As(new(logger.Logger))),
+		),
+
 		Module,
 	)
 	if err != nil {
@@ -68,10 +71,11 @@ func TestModule_StartsAndRegistersRoutes(t *testing.T) {
 
 	app := fx.New(
 		fx.NopLogger,
-		// Провайдим *gin.Engine, чтобы register смог подвязаться
 		fx.Provide(func() *gin.Engine { return gin.New() }),
+		fx.Supply(
+			fx.Annotate(&test.FakeLogger{}, fx.As(new(logger.Logger))),
+		),
 		Module,
-		// Достаём из контейнера тот же *gin.Engine для проверок
 		fx.Populate(&router),
 	)
 
@@ -87,7 +91,6 @@ func TestModule_StartsAndRegistersRoutes(t *testing.T) {
 		t.Fatalf("router was not populated")
 	}
 
-	// После запуска register уже вызван, маршруты должны быть на месте
 	if !hasRoute(router, "POST", "/update/:type/:name/:value") {
 		t.Fatalf("expected route POST /update/:type/:name/:value")
 	}

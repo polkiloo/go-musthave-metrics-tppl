@@ -8,16 +8,18 @@ import (
 
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
 	"go.uber.org/fx"
 )
 
 func TestMain_WiringIsValid(t *testing.T) {
 	err := fx.ValidateApp(
+		logger.Module,
 		config.Module,
 		handler.Module,
 		server.Module,
-		fx.NopLogger, // тише логи в тестах
+		fx.NopLogger,
 	)
 	if err != nil {
 		t.Fatalf("fx wiring validation failed: %v", err)
@@ -28,11 +30,10 @@ func TestMain_GracefulRun(t *testing.T) {
 	done := make(chan struct{})
 
 	go func() {
-		main() // внутри .Run(); завершится на сигнале
+		main()
 		close(done)
 	}()
 
-	// Дадим Fx подписаться на сигнал
 	time.Sleep(150 * time.Millisecond)
 
 	proc, err := os.FindProcess(os.Getpid())
@@ -45,7 +46,6 @@ func TestMain_GracefulRun(t *testing.T) {
 
 	select {
 	case <-done:
-		// ok
 	case <-time.After(3 * time.Second):
 		t.Fatalf("main() did not exit in time")
 	}

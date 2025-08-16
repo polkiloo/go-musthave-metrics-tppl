@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 )
 
@@ -20,7 +21,8 @@ func RegisterRoutes(r *gin.Engine, h *GinHandler) {
 	h.RegisterValue(r)
 }
 
-func register(r *gin.Engine, h *GinHandler) {
+func register(r *gin.Engine, h *GinHandler, l logger.Logger) {
+	r.Use(logger.Middleware(l))
 	RegisterRoutes(r, h)
 }
 

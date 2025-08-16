@@ -7,15 +7,13 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 	"go.uber.org/fx"
 )
 
@@ -35,11 +33,6 @@ func TestRun_OnStart_SuccessPath_CoversGoroutine(t *testing.T) {
 	wg.Add(1)
 
 	var gotAddr string
-	var logged string
-
-	logPrintf = func(format string, v ...any) {
-		logged = sprintf(format, v...)
-	}
 
 	engineRunner = func(r *gin.Engine, addr string) error {
 		defer wg.Done()
@@ -47,7 +40,9 @@ func TestRun_OnStart_SuccessPath_CoversGoroutine(t *testing.T) {
 		return nil
 	}
 
-	run(lc, engine, cfg)
+	logger := &test.FakeLogger{}
+
+	run(lc, engine, cfg, logger)
 	if len(lc.hooks) != 1 {
 		t.Fatalf("expected 1 hook, got %d", len(lc.hooks))
 	}
@@ -62,8 +57,15 @@ func TestRun_OnStart_SuccessPath_CoversGoroutine(t *testing.T) {
 	if gotAddr != "127.0.0.1:18080" {
 		t.Errorf("got addr %q; want %q", gotAddr, "127.0.0.1:18080")
 	}
-	if !strings.Contains(logged, "Server listening on http://127.0.0.1:18080") {
-		t.Errorf("unexpected log: %q", logged)
+
+	infoMessages := logger.GetInfoMessages()
+	if len(infoMessages) == 0 {
+		t.Fatalf("expected at least one info message, got none")
+	}
+
+	expectedLog := "server listening addr=http://127.0.0.1:18080"
+	if !strings.Contains(infoMessages[0], expectedLog) {
+		t.Errorf("unexpected log: %q", infoMessages[0])
 	}
 
 	if err := h.OnStop(context.Background()); err != nil {
@@ -82,17 +84,14 @@ func TestRun_OnStart_FailurePath_CoversFatal(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	var fatalMsg string
-
 	engineRunner = func(r *gin.Engine, addr string) error {
 		defer wg.Done()
 		return errors.New("bind failed")
 	}
-	logFatalf = func(format string, v ...any) {
-		fatalMsg = sprintf(format, v...)
-	}
 
-	run(lc, engine, cfg)
+	logger := &test.FakeLogger{}
+
+	run(lc, engine, cfg, logger)
 	if len(lc.hooks) != 1 {
 		t.Fatalf("expected 1 hook, got %d", len(lc.hooks))
 	}
@@ -104,8 +103,14 @@ func TestRun_OnStart_FailurePath_CoversFatal(t *testing.T) {
 
 	wg.Wait()
 
-	if !strings.Contains(fatalMsg, "Server failed: bind failed") {
-		t.Errorf("unexpected fatal message: %q", fatalMsg)
+	errorMessages := logger.GetErrorMessages()
+	if len(errorMessages) == 0 {
+		t.Fatalf("expected at least one error message, got none")
+	}
+
+	expectedError := "server failed error=bind failed"
+	if !strings.Contains(errorMessages[0], expectedError) {
+		t.Errorf("unexpected error message: %q", errorMessages[0])
 	}
 }
 
@@ -115,12 +120,8 @@ func sprintf(format string, v ...any) string {
 
 func resetHooksOverrides() func() {
 	prevRun := engineRunner
-	prevPrint := logPrintf
-	prevFatal := logFatalf
 	return func() {
 		engineRunner = prevRun
-		logPrintf = prevPrint
-		logFatalf = prevFatal
 	}
 }
 
@@ -129,20 +130,6 @@ func swapEngineRunner(t *testing.T, fn func(*gin.Engine, string) error) (restore
 	old := engineRunner
 	engineRunner = fn
 	return func() { engineRunner = old }
-}
-
-func swapLogPrintf(t *testing.T, fn func(string, ...any)) (restore func()) {
-	t.Helper()
-	old := logPrintf
-	logPrintf = fn
-	return func() { logPrintf = old }
-}
-
-func swapLogFatalf(t *testing.T, fn func(string, ...any)) (restore func()) {
-	t.Helper()
-	old := logFatalf
-	logFatalf = fn
-	return func() { logFatalf = old }
 }
 
 func TestNewEngine_ServesHTTP(t *testing.T) {
@@ -198,53 +185,6 @@ func TestEngineRunner_CallsStubWithArgs(t *testing.T) {
 	}
 }
 
-func TestLogPrintf_OverrideAndCall(t *testing.T) {
-	var called int32
-	var gotFmt string
-	var gotArgs []any
-
-	restore := swapLogPrintf(t, func(format string, v ...any) {
-		atomic.AddInt32(&called, 1)
-		gotFmt = format
-		gotArgs = v
-	})
-	defer restore()
-
-	logPrintf("hello %s %d", "world", 42)
-
-	if atomic.LoadInt32(&called) != 1 {
-		t.Fatalf("logPrintf stub not called")
-	}
-	if gotFmt != "hello %s %d" {
-		t.Fatalf("format mismatch: got %q", gotFmt)
-	}
-	if len(gotArgs) != 2 || gotArgs[0] != "world" || gotArgs[1] != 42 {
-		t.Fatalf("args mismatch: %+v", gotArgs)
-	}
-}
-
-func TestLogFatalf_OverrideAndCall_NoExit(t *testing.T) {
-	var called int32
-	var gotFmt string
-	var gotArgs []any
-
-	restore := swapLogFatalf(t, func(format string, v ...any) {
-		atomic.AddInt32(&called, 1)
-		gotFmt = format
-		gotArgs = v
-	})
-	defer restore()
-
-	logFatalf("fatal %s", "oops")
-
-	if atomic.LoadInt32(&called) != 1 {
-		t.Fatalf("logFatalf stub not called")
-	}
-	if gotFmt != "fatal %s" || len(gotArgs) != 1 || gotArgs[0] != "oops" {
-		t.Fatalf("logFatalf args mismatch: fmt=%q args=%v", gotFmt, gotArgs)
-	}
-}
-
 func TestEngineRunner_DefaultCallsRun_AddrInUse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -260,118 +200,4 @@ func TestEngineRunner_DefaultCallsRun_AddrInUse(t *testing.T) {
 	if err := engineRunner(r, addr); err == nil {
 		t.Fatalf("expected error (addr in use), got nil")
 	}
-}
-
-type fakeLC struct{ hook fx.Hook }
-
-func (f *fakeLC) Append(h fx.Hook) { f.hook = h }
-
-func TestRun_OnStart_UsesRunnerAndLogs_Success(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	var runnerCalled int32
-	var gotAddr string
-
-	done := make(chan struct{})
-
-	restoreRunner := swapEngineRunner(t, func(e *gin.Engine, addr string) error {
-		atomic.AddInt32(&runnerCalled, 1)
-		gotAddr = addr
-		close(done)
-		return nil
-	})
-	defer restoreRunner()
-
-	var printfCalled int32
-	restorePrintf := swapLogPrintf(t, func(format string, v ...any) {
-		atomic.AddInt32(&printfCalled, 1)
-	})
-	defer restorePrintf()
-
-	var fatalCalled int32
-	restoreFatal := swapLogFatalf(t, func(format string, v ...any) {
-		atomic.AddInt32(&fatalCalled, 1)
-	})
-	defer restoreFatal()
-
-	lc := &fakeLC{}
-	r := gin.New()
-	cfg := &AppConfig{Host: "127.0.0.1", Port: 54321}
-
-	run(lc, r, cfg)
-
-	if err := lc.hook.OnStart(context.Background()); err != nil {
-		t.Fatalf("OnStart: %v", err)
-	}
-
-	select {
-	case <-done:
-
-	case <-time.After(1 * time.Second):
-		t.Fatalf("engineRunner was not called")
-	}
-
-	if atomic.LoadInt32(&runnerCalled) != 1 {
-		t.Fatalf("runner not called exactly once")
-	}
-	if gotAddr != "127.0.0.1:54321" {
-		t.Fatalf("runner addr = %q, want %q", gotAddr, "127.0.0.1:54321")
-	}
-	if atomic.LoadInt32(&printfCalled) == 0 {
-		t.Fatalf("logPrintf was not called")
-	}
-	if atomic.LoadInt32(&fatalCalled) != 0 {
-		t.Fatalf("logFatalf should not be called on success")
-	}
-}
-
-func TestRun_OnStart_RunnerErrorCallsFatal(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	restoreRunner := swapEngineRunner(t, func(e *gin.Engine, addr string) error {
-		return fmt.Errorf("boom")
-	})
-	defer restoreRunner()
-
-	var fatalCalled int32
-	restoreFatal := swapLogFatalf(t, func(format string, v ...any) {
-		atomic.AddInt32(&fatalCalled, 1)
-	})
-	defer restoreFatal()
-
-	lc := &fakeLC{}
-	r := gin.New()
-	cfg := &AppConfig{Host: "127.0.0.1", Port: 1}
-
-	run(lc, r, cfg)
-
-	if err := lc.hook.OnStart(context.Background()); err != nil {
-		t.Fatalf("OnStart: %v", err)
-	}
-
-	time.Sleep(50 * time.Millisecond)
-
-	if atomic.LoadInt32(&fatalCalled) == 0 {
-		t.Fatalf("logFatalf was not called on runner error")
-	}
-}
-
-func TestDefaultLogFatalf_ExitsProcess(t *testing.T) {
-	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess_LogFatalf")
-	cmd.Env = append(os.Environ(), "HELPER_LOGFATALF=1")
-	err := cmd.Run()
-	if err == nil {
-		t.Fatalf("expected child process to exit with error (os.Exit), got nil")
-	}
-	if exitErr, ok := err.(*exec.ExitError); !ok || exitErr.Success() {
-		t.Fatalf("expected non-zero exit status, got: %v", err)
-	}
-}
-
-func TestHelperProcess_LogFatalf(t *testing.T) {
-	if os.Getenv("HELPER_LOGFATALF") != "1" {
-		t.Skip("helper process only")
-	}
-	logFatalf("fatal %s", "boom")
-	t.Fatalf("logFatalf did not exit the process")
 }

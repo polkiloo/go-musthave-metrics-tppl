@@ -150,8 +150,6 @@ func TestBuildAgentConfig_FlagEmptyHost_KeepDefaultHost_PortFromFlag(t *testing.
 	})
 }
 
-/* ---------- fx Module wiring ---------- */
-
 func TestAgentConfigModule_ValidateApp(t *testing.T) {
 	if err := fx.ValidateApp(Module); err != nil {
 		t.Fatalf("fx.ValidateApp(Module) failed: %v", err)

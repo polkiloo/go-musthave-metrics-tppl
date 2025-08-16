@@ -75,7 +75,6 @@ func TestModule_AdapterValueToPointer_Executes(t *testing.T) {
 			app := fx.New(
 				fx.NopLogger,
 				Module,
-				// Запрашиваем оба типа -> провайдеры/адаптер вызовутся
 				fx.Invoke(func(v server.AppConfig, p *server.AppConfig) {
 					gotVal = v
 					gotPtr = p

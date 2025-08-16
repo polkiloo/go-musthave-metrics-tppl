@@ -36,7 +36,6 @@ func TestMain_GracefulRun(t *testing.T) {
 		close(done)
 	}()
 
-	// Дадим Fx подписаться на сигнал
 	time.Sleep(150 * time.Millisecond)
 
 	proc, err := os.FindProcess(os.Getpid())
@@ -49,7 +48,6 @@ func TestMain_GracefulRun(t *testing.T) {
 
 	select {
 	case <-done:
-		// ok
 	case <-time.After(3 * time.Second):
 		t.Fatalf("main() did not exit in time")
 	}
