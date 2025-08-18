@@ -1,22 +1,27 @@
-package agent
+package collector
 
 import (
 	"math/rand"
 	"runtime"
 	"sync"
 
-	models "github.com/polkiloo/go-musthave-metrics-tppl/internal/model"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
 type CollectorInterface interface {
 	Collect()
-	Snapshot() (map[string]models.Gauge, map[string]models.Counter)
+	Snapshot() []*models.Metrics
 }
 
 type Collector struct {
-	mu       sync.RWMutex
-	Gauges   map[string]models.Gauge
-	Counters map[string]models.Counter
+	mu      sync.RWMutex
+	metrics map[string]*models.Metrics
+}
+
+func NewCollector() *Collector {
+	return &Collector{
+		metrics: make(map[string]*models.Metrics),
+	}
 }
 
 type MetricGetter[T any] func(*runtime.MemStats) T
@@ -55,13 +60,6 @@ var counterGetters = map[string]MetricGetter[models.Counter]{
 	"PollCount": func(_ *runtime.MemStats) models.Counter { return 1 },
 }
 
-func NewCollector() *Collector {
-	return &Collector{
-		Gauges:   make(map[string]models.Gauge),
-		Counters: make(map[string]models.Counter),
-	}
-}
-
 func (c *Collector) Collect() {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
@@ -69,30 +67,80 @@ func (c *Collector) Collect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for name, getter := range gaugeGetters {
-		c.Gauges[name] = getter(&rtm)
+	// gauges
+	for name, get := range gaugeGetters {
+		val := get(&rtm)
+		f := float64(val)
+		if m, ok := c.metrics[name]; ok && m.MType == models.GaugeType && m.Value != nil {
+			*m.Value = f
+			continue
+		}
+		if m, err := models.NewGaugeMetrics(name, &f); err == nil {
+			c.metrics[name] = m
+		}
 	}
-	c.Gauges["RandomValue"] = models.Gauge(rand.Float64() * 100)
-	for name, getter := range counterGetters {
-		c.Counters[name] += getter(&rtm)
+
+	// RandomValue
+	{
+		val := rand.Float64() * 100
+		if m, ok := c.metrics["RandomValue"]; ok && m.MType == models.GaugeType && m.Value != nil {
+			*m.Value = val
+		} else {
+			v := val
+			if m, err := models.NewGaugeMetrics("RandomValue", &v); err == nil {
+				c.metrics["RandomValue"] = m
+			}
+		}
+	}
+
+	// counters
+	for name, get := range counterGetters {
+		inc := get(&rtm)
+		i := int64(inc)
+		if m, ok := c.metrics[name]; ok && m.MType == models.CounterType && m.Delta != nil {
+			*m.Delta += i
+			continue
+		}
+		if m, err := models.NewCounterMetrics(name, &i); err == nil {
+			c.metrics[name] = m
+		}
 	}
 }
 
-func (c *Collector) Snapshot() (map[string]models.Gauge, map[string]models.Counter) {
+func (c *Collector) Snapshot() []*models.Metrics {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	g := make(map[string]models.Gauge, len(c.Gauges))
-	for k, v := range c.Gauges {
-		g[k] = v
+	out := make([]*models.Metrics, 0, len(c.metrics))
+	for _, m := range c.metrics {
+		out = append(out, cloneMetrics(m))
 	}
+	return out
+}
 
-	cn := make(map[string]models.Counter, len(c.Counters))
-	for k, v := range c.Counters {
-		cn[k] = v
+func cloneMetrics(m *models.Metrics) *models.Metrics {
+	if m == nil {
+		return nil
 	}
-
-	return g, cn
+	var (
+		vp *float64
+		dp *int64
+	)
+	if m.Value != nil {
+		v := *m.Value
+		vp = &v
+	}
+	if m.Delta != nil {
+		d := *m.Delta
+		dp = &d
+	}
+	return &models.Metrics{
+		ID:    m.ID,
+		MType: m.MType,
+		Delta: dp,
+		Value: vp,
+		Hash:  m.Hash,
+	}
 }
 
 var _ CollectorInterface = NewCollector()

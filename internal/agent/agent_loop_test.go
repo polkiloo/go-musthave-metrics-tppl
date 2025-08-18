@@ -5,31 +5,15 @@ import (
 	"testing"
 	"time"
 
-	models "github.com/polkiloo/go-musthave-metrics-tppl/internal/model"
-
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
-
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sender"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 	"github.com/stretchr/testify/assert"
 )
 
-type mockCollector struct{ collects int32 }
-
-func (m *mockCollector) Collect() {
-	atomic.AddInt32(&m.collects, 1)
-}
-func (m *mockCollector) Snapshot() (map[string]models.Gauge, map[string]models.Counter) {
-	return map[string]models.Gauge{"Alloc": 1.23}, map[string]models.Counter{"PollCount": 2}
-}
-
-type mockSender struct{ sends int32 }
-
-func (m *mockSender) Send(g map[string]models.Gauge, c map[string]models.Counter) {
-	atomic.AddInt32(&m.sends, 1)
-}
-
 func TestAgentLoopSleep_Basic(t *testing.T) {
-	c := &mockCollector{}
-	s := &mockSender{}
+	c := &test.FakeCollector{}
+	s := &test.FakeAgentSender{}
 
 	cfg := agent.AgentLoopConfig{
 		PollInterval:   2 * time.Millisecond,
@@ -37,15 +21,15 @@ func TestAgentLoopSleep_Basic(t *testing.T) {
 		Iterations:     10,
 	}
 
-	agent.AgentLoopSleep(c, s, cfg)
+	agent.AgentLoopSleep(c, []sender.SenderInterface{s}, cfg)
 
-	assert.GreaterOrEqual(t, atomic.LoadInt32(&c.collects), int32(10))
-	assert.Greater(t, atomic.LoadInt32(&s.sends), int32(0))
+	assert.GreaterOrEqual(t, c.Collected, int32(10))
+	assert.Greater(t, atomic.LoadInt32(&s.Sends), int32(0))
 }
 
 func TestAgentLoopSleep_ZeroIterations(t *testing.T) {
-	c := &mockCollector{}
-	s := &mockSender{}
+	c := &test.FakeCollector{}
+	s := &test.FakeAgentSender{}
 	done := make(chan struct{})
 
 	go func() {
@@ -54,7 +38,7 @@ func TestAgentLoopSleep_ZeroIterations(t *testing.T) {
 			ReportInterval: 2 * time.Millisecond,
 			Iterations:     0,
 		}
-		agent.AgentLoopSleep(c, s, cfg)
+		agent.AgentLoopSleep(c, []sender.SenderInterface{s}, cfg)
 		close(done)
 	}()
 	select {
@@ -65,15 +49,15 @@ func TestAgentLoopSleep_ZeroIterations(t *testing.T) {
 }
 
 func TestAgentLoopSleep_ReportIntervalLongerThanLoop(t *testing.T) {
-	c := &mockCollector{}
-	s := &mockSender{}
+	c := &test.FakeCollector{}
+	s := &test.FakeAgentSender{}
 
 	cfg := agent.AgentLoopConfig{
 		PollInterval:   1 * time.Millisecond,
 		ReportInterval: 100 * time.Millisecond,
 		Iterations:     3,
 	}
-	agent.AgentLoopSleep(c, s, cfg)
+	agent.AgentLoopSleep(c, []sender.SenderInterface{s}, cfg)
 
-	assert.Equal(t, int32(0), atomic.LoadInt32(&s.sends))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&s.Sends))
 }

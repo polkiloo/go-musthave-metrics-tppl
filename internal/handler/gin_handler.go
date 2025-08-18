@@ -16,9 +16,37 @@ func NewGinHandler() *GinHandler {
 	return &GinHandler{service: service.NewMetricService()}
 }
 
+func (h *GinHandler) RegisterUpdate(r *gin.Engine) {
+	r.POST("/update", func(c *gin.Context) {
+		h.UpdateJSON(c)
+	})
+
+	r.POST("/update/", func(c *gin.Context) {
+		h.UpdateJSON(c)
+	})
+
+	r.POST("/update/:type/:name/:value", func(c *gin.Context) {
+		h.UpdatePlain(c)
+	})
+}
+
+func (h *GinHandler) RegisterGetValue(r *gin.Engine) {
+	r.POST("/value", func(c *gin.Context) {
+		h.GetValueJSON(c)
+	})
+
+	r.POST("/value/", func(c *gin.Context) {
+		h.GetValueJSON(c)
+	})
+
+	r.GET("/value/:type/:name", func(c *gin.Context) {
+		h.GetValuePlain(c)
+	})
+}
+
 func RegisterRoutes(r *gin.Engine, h *GinHandler) {
 	h.RegisterUpdate(r)
-	h.RegisterValue(r)
+	h.RegisterGetValue(r)
 }
 
 func register(r *gin.Engine, h *GinHandler, l logger.Logger) {

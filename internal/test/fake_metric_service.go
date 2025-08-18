@@ -1,29 +1,69 @@
 package test
 
 import (
-	models "github.com/polkiloo/go-musthave-metrics-tppl/internal/model"
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 
-	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
+	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
 type FakeMetricService struct {
 	Err    error
-	MType  models.MetricType
-	MName  string
-	MValue string
+	Metric models.Metrics
 }
 
-func (f *FakeMetricService) ProcessUpdate(metricType models.MetricType, name, rawValue string) error {
-	f.MType = metricType
-	f.MName = name
-	f.MValue = rawValue
+func (f *FakeMetricService) ProcessUpdate(m *models.Metrics) error {
+	f.Metric.MType = m.MType
+	f.Metric.ID = m.ID
+
+	switch m.MType {
+	case models.GaugeType:
+		f.Metric.Value = m.Value
+	case models.CounterType:
+		f.Metric.Delta = m.Delta
+	default:
+		return models.ErrMetricInvalidType
+	}
 	return f.Err
 }
 
-func (f *FakeMetricService) ProcessGetValue(metricType models.MetricType, name string) (string, error) {
-	f.MType = metricType
-	f.MName = name
-	return f.MValue, f.Err
+func (f *FakeMetricService) ProcessGetValue(metricName string, metricType models.MetricType) (*models.Metrics, error) {
+	var m *models.Metrics
+
+	switch {
+	case models.IsGauge(metricType):
+		m, _ = models.NewGaugeMetrics(metricName, f.Metric.Value)
+	case models.IsCounter(metricType):
+		m, _ = models.NewCounterMetrics(metricName, f.Metric.Delta)
+	default:
+		return nil, f.Err
+	}
+	return m, f.Err
 }
 
-var _ service.MetricServiceInterface = &FakeMetricService{}
+func DoJSON(r *gin.Engine, url string, body any, contentType string) *httptest.ResponseRecorder {
+	var buf bytes.Buffer
+	if body != nil {
+		_ = json.NewEncoder(&buf).Encode(body)
+	}
+	req := httptest.NewRequest(http.MethodPost, url, &buf)
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
+}
+
+func DoGET(r *gin.Engine, url, accept string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
+}

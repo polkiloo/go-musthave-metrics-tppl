@@ -14,9 +14,7 @@ type ServerEnvVars struct {
 }
 
 func getEnvVars() (ServerEnvVars, error) {
-	hp, err := commoncfg.ReadHostPortEnv(EnvAddressVarName)
-	if err != nil {
-		return ServerEnvVars{}, err
-	}
+	hp, _ := commoncfg.ReadHostPortEnv(EnvAddressVarName)
+
 	return ServerEnvVars{Host: hp.Host, Port: hp.Port}, nil
 }

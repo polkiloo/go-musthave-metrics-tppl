@@ -16,8 +16,6 @@ type AddressFlagValue struct {
 	Port *int   // nil если не задано
 }
 
-func (v *AddressFlagValue) isFlagValue() {}
-
 var _ FlagValue = (*AddressFlagValue)(nil)
 
 func ParseAddressFlag(value string, present bool) (AddressFlagValue, error) {

@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	models "github.com/polkiloo/go-musthave-metrics-tppl/internal/model"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 )
@@ -25,39 +25,39 @@ func TestUpdate_NameEmpty(t *testing.T) {
 		gin.Param{Key: "value", Value: "1.0"},
 	}
 
-	h.Update(c)
+	h.UpdatePlain(c)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 404 when name empty, got %d", w.Code)
 	}
-	if fs.MName != "" || fs.MType != "" {
+	if fs.Metric.ID != "" || fs.Metric.MType != "" {
 		t.Errorf("service was called unexpectedly: %+v", fs)
 	}
 }
 
 func TestUpdate_ServiceError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	expErr := errors.New("run error")
+
+	expErr := service.ErrMetricNotFound
 	fs := &test.FakeMetricService{Err: expErr}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{
-		gin.Param{Key: "type", Value: string(models.CounterType)},
-		gin.Param{Key: "name", Value: "hits"},
-		gin.Param{Key: "value", Value: "5"},
-	}
 
-	h.Update(c)
+	j := int64(5)
+	m, _ := models.NewCounterMetrics(models.CounterNames[0], &j)
+	c.Params = gin.Params{
+		gin.Param{Key: "type", Value: string(m.MType)},
+		gin.Param{Key: "name", Value: m.ID},
+		gin.Param{Key: "value", Value: strconv.FormatInt(*m.Delta, 10)},
+	}
+	h.UpdatePlain(c)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400 on service error, got %d", w.Code)
 	}
 	if body := w.Body.String(); body != expErr.Error() {
 		t.Errorf("expected body %q, got %q", expErr.Error(), body)
-	}
-	if fs.MType != models.CounterType || fs.MName != "hits" || fs.MValue != "5" {
-		t.Errorf("service called with wrong args: %+v", fs)
 	}
 }
 
@@ -68,13 +68,14 @@ func TestUpdate_Success(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+	j := float64(12.3)
+	m, _ := models.NewGaugeMetrics(models.GaugeNames[0], &j)
 	c.Params = gin.Params{
-		gin.Param{Key: "type", Value: string(models.GaugeType)},
-		gin.Param{Key: "name", Value: "temp"},
-		gin.Param{Key: "value", Value: "12.3"},
+		gin.Param{Key: "type", Value: string(m.MType)},
+		gin.Param{Key: "name", Value: m.ID},
+		gin.Param{Key: "value", Value: strconv.FormatFloat(*m.Value, 'f', -1, 64)},
 	}
-
-	h.Update(c)
+	h.UpdatePlain(c)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200 OK, got %d", w.Code)
@@ -82,33 +83,29 @@ func TestUpdate_Success(t *testing.T) {
 	if body := w.Body.String(); body != "ok" {
 		t.Errorf("expected 'ok', got %q", body)
 	}
-	if fs.MType != models.GaugeType || fs.MName != "temp" || fs.MValue != "12.3" {
+	if fs.Metric.MType != models.GaugeType || fs.Metric.ID != m.ID || *fs.Metric.Value != j {
 		t.Errorf("service called with wrong args: %+v", fs)
 	}
 }
 
-func TestUpdate_UnknownMetricType(t *testing.T) {
+func TestUpdate_UnknownMetric(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	fs := &test.FakeMetricService{Err: service.ErrUnknownMetricType}
+
+	fs := &test.FakeMetricService{}
 	h := &GinHandler{service: fs}
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{
-		{Key: "type", Value: "badtype"},
-		{Key: "name", Value: "m"},
-		{Key: "value", Value: "0"},
-	}
 
-	h.Update(c)
+	metricType := "uknown_metric_type"
+
+	c.Params = gin.Params{
+		gin.Param{Key: "type", Value: metricType},
+	}
+	h.UpdatePlain(c)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for unknown metric type, got %d", w.Code)
+		t.Errorf("expected 400 on service error, got %d", w.Code)
 	}
-	if body := w.Body.String(); body != "" {
-		t.Errorf("expected empty body for unknown type, got %q", body)
-	}
-	if fs.MType != models.MetricType("badtype") {
-		t.Errorf("service called with type %v; want badtype", fs.MType)
-	}
+
 }

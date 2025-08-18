@@ -261,3 +261,10 @@ func TestParsePollSecondsFlag_Invalid(t *testing.T) {
 		t.Fatalf("expected error for 0")
 	}
 }
+
+func TestCloneMetrics_NilInput(t *testing.T) {
+
+	if got := flagsValueMapper(nil, nil); got != nil {
+		t.Errorf("expected nil, got %#v", got)
+	}
+}

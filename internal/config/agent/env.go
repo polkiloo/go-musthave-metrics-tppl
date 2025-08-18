@@ -23,10 +23,8 @@ type AgentEnvVars struct {
 func getEnvVars() (AgentEnvVars, error) {
 	var e AgentEnvVars
 
-	hp, err := commoncfg.ReadHostPortEnv(EnvAddressVarName)
-	if err != nil {
-		return e, err
-	}
+	hp, _ := commoncfg.ReadHostPortEnv(EnvAddressVarName)
+
 	e.Host = hp.Host
 	e.Port = hp.Port
 

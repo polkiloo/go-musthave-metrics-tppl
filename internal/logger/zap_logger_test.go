@@ -9,7 +9,7 @@ import (
 )
 
 func TestNew_Smoke(t *testing.T) {
-	l, err := New()
+	l, err := NewZapLogger()
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -113,7 +113,7 @@ func TestNew_BuildError(t *testing.T) {
 		return nil, errors.New("build failed")
 	}
 
-	l, err := New()
+	l, err := NewZapLogger()
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

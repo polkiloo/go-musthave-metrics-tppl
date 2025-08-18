@@ -4,6 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/collector"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sender"
 	"go.uber.org/fx"
 )
 
@@ -31,31 +34,15 @@ var DefaultAppConfig = AppConfig{
 	LoopIterations: DefaultLoopIterations,
 }
 
-func ProvideCollector() CollectorInterface {
-	return NewCollector()
-}
-
-func ProvideSender(args AppConfig) SenderInterface {
-	return NewSender("http://"+args.Host, args.Port)
-}
-
-func ProvideConfig(args AppConfig) AgentLoopConfig {
-	return AgentLoopConfig{
-		PollInterval:   args.PollInterval,
-		ReportInterval: args.ReportInterval,
-		Iterations:     args.LoopIterations,
-	}
-}
-
 func RunAgent(
 	lc fx.Lifecycle,
-	collector CollectorInterface,
-	sender SenderInterface,
+	collector collector.CollectorInterface,
+	senders []sender.SenderInterface,
 	cfg AgentLoopConfig,
 ) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			go AgentLoopSleep(collector, sender, cfg)
+			go AgentLoopSleep(collector, senders, cfg)
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
@@ -63,3 +50,48 @@ func RunAgent(
 		},
 	})
 }
+
+var ModuleAgent = fx.Module("agent",
+	fx.Invoke(
+		RunAgent,
+	),
+)
+
+func ProvideCollector(cfg AppConfig, l logger.Logger) (collector.CollectorInterface, error) {
+	return collector.NewCollector(), nil
+}
+
+var ModuleCollector = fx.Module("collector",
+	fx.Provide(
+		ProvideCollector,
+	),
+)
+
+func ProvideSender(cfg AppConfig, l logger.Logger) ([]sender.SenderInterface, error) {
+	senders := make([]sender.SenderInterface, 0, 2)
+	senders = append(senders,
+		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l),
+		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l),
+	)
+	return senders, nil
+}
+
+var ModuleSender = fx.Module("sender",
+	fx.Provide(
+		ProvideSender,
+	),
+)
+
+func ProvideAgentLoopConfig(cfg AppConfig) AgentLoopConfig {
+	return AgentLoopConfig{
+		PollInterval:   cfg.PollInterval,
+		ReportInterval: cfg.ReportInterval,
+		Iterations:     cfg.LoopIterations,
+	}
+}
+
+var ModuleLoopConfig = fx.Module("loopconfig",
+	fx.Provide(
+		ProvideAgentLoopConfig,
+	),
+)

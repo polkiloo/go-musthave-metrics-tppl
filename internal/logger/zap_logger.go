@@ -32,7 +32,7 @@ var buildZapLogger = func(cfg zap.Config) (*zap.Logger, error) {
 	return cfg.Build()
 }
 
-func New() (Logger, error) {
+func NewZapLogger() (Logger, error) {
 	cfg := zap.NewProductionConfig()
 
 	z, err := buildZapLogger(cfg)
@@ -45,5 +45,5 @@ func New() (Logger, error) {
 
 var Module = fx.Module(
 	"zaplog",
-	fx.Provide(New),
+	fx.Provide(NewZapLogger),
 )

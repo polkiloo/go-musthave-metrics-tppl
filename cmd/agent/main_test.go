@@ -8,23 +8,22 @@ import (
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
 	agentcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/agent"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"go.uber.org/fx"
 )
 
 func TestMain_WiringIsValid(t *testing.T) {
 	err := fx.ValidateApp(
+		logger.Module,
 		agentcfg.Module,
-		fx.Provide(
-			agent.ProvideCollector,
-			agent.ProvideSender,
-			agent.ProvideConfig,
-		),
-		fx.Invoke(agent.RunAgent),
+		agent.ModuleCollector,
+		agent.ModuleSender,
+		agent.ModuleAgent,
+		agent.ModuleLoopConfig,
 		fx.NopLogger,
-		fx.Supply("http://localhost:8080"),
 	)
 	if err != nil {
-		t.Fatalf("fx validation failed: %v", err)
+		t.Fatalf("fx wiring validation failed: %v", err)
 	}
 }
 
