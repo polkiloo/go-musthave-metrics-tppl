@@ -47,8 +47,8 @@ func TestRunAgent_RegistersHooksAndStartsLoop_WithChan(t *testing.T) {
 func TestProvideSender_ReturnsPlainAndJSON(t *testing.T) {
 	cfg := AppConfig{Host: "localhost", Port: 8080}
 	log := &test.FakeLogger{}
-
-	senders, err := ProvideSender(cfg, log)
+	comp := test.NewFakeCompressor("gzip")
+	senders, err := ProvideSender(cfg, log, comp)
 	if err != nil {
 		t.Fatalf("ProvideSender returned error: %v", err)
 	}

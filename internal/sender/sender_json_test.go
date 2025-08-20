@@ -2,6 +2,7 @@ package sender_test
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sender"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
@@ -31,7 +33,14 @@ func TestJSONSender_Send_SendsAll(t *testing.T) {
 		gotCT = append(gotCT, r.Header.Get("Content-Type"))
 		gotPaths = append(gotPaths, r.URL.Path)
 		defer r.Body.Close()
-		b, _ := io.ReadAll(r.Body)
+		var b []byte
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			zr, _ := gzip.NewReader(r.Body)
+			b, _ = io.ReadAll(zr)
+			zr.Close()
+		} else {
+			b, _ = io.ReadAll(r.Body)
+		}
 		gotBodies = append(gotBodies, append([]byte(nil), b...))
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -42,7 +51,8 @@ func TestJSONSender_Send_SendsAll(t *testing.T) {
 
 	host, port := hostPortFromServer(t, ts)
 	log := &test.FakeLogger{}
-	s := sender.NewJSONSender(host, port, ts.Client(), log)
+	comp := compression.NewGzip(compression.BestSpeed)
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp)
 
 	c := int64(5)
 	g := 1.23
@@ -92,7 +102,8 @@ func TestJSONSender_NonJSONContentType_Logged(t *testing.T) {
 
 	host, port := hostPortFromServer(t, ts)
 	log := &test.FakeLogger{}
-	s := sender.NewJSONSender(host, port, ts.Client(), log)
+	comp := test.NewFakeCompressor("gzip")
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp)
 
 	g := 1.0
 	s.Send([]*models.Metrics{{ID: "Alloc", MType: models.GaugeType, Value: &g}})
@@ -118,7 +129,8 @@ func TestJSONSender_NonOKStatus_Logged(t *testing.T) {
 
 	host, port := hostPortFromServer(t, ts)
 	log := &test.FakeLogger{}
-	s := sender.NewJSONSender(host, port, ts.Client(), log)
+	comp := test.NewFakeCompressor("gzip")
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp)
 
 	g := 1.0
 	s.Send([]*models.Metrics{{ID: "Alloc", MType: models.GaugeType, Value: &g}})
@@ -145,7 +157,9 @@ func TestJSONSender_ClientError_Logged(t *testing.T) {
 	}
 
 	log := &test.FakeLogger{}
-	s := sender.NewJSONSender("127.0.0.1", 65535, cl, log)
+	comp := test.NewFakeCompressor("gzip")
+
+	s := sender.NewJSONSender("127.0.0.1", 65535, cl, log, comp)
 
 	g := 1.0
 	s.Send([]*models.Metrics{{ID: "Alloc", MType: models.GaugeType, Value: &g}})
@@ -176,7 +190,9 @@ func TestJSONSender_MarshalError_Logged(t *testing.T) {
 	}
 
 	log := &test.FakeLogger{}
-	s := sender.NewJSONSender("localhost", 1, cl, log)
+	comp := test.NewFakeCompressor("gzip")
+
+	s := sender.NewJSONSender("localhost", 1, cl, log, comp)
 
 	nan := math.NaN()
 	s.Send([]*models.Metrics{{ID: "Alloc", MType: models.GaugeType, Value: &nan}})
@@ -203,7 +219,9 @@ func TestJSONSender_Send_RespectsClientTimeout(t *testing.T) {
 	host, port := hostPortFromServer(t, ts)
 	cl := &http.Client{Timeout: 100 * time.Millisecond}
 	log := &test.FakeLogger{}
-	s := sender.NewJSONSender(host, port, cl, log)
+	comp := test.NewFakeCompressor("gzip")
+
+	s := sender.NewJSONSender(host, port, cl, log, comp)
 
 	val := 1.0
 	start := time.Now()
@@ -227,7 +245,13 @@ func TestJSONSender_Send_RespectsClientTimeout(t *testing.T) {
 func TestJSONSender_BodyShape_Minimal(t *testing.T) {
 	var body []byte
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ = io.ReadAll(r.Body)
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			zr, _ := gzip.NewReader(r.Body)
+			body, _ = io.ReadAll(zr)
+			zr.Close()
+		} else {
+			body, _ = io.ReadAll(r.Body)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -235,7 +259,9 @@ func TestJSONSender_BodyShape_Minimal(t *testing.T) {
 
 	host, port := hostPortFromServer(t, ts)
 	log := &test.FakeLogger{}
-	s := sender.NewJSONSender(host, port, ts.Client(), log)
+	comp := compression.NewGzip(compression.BestSpeed)
+
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp)
 
 	delta := int64(7)
 	gauge := 3.14

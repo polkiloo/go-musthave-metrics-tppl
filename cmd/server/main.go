@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
@@ -14,5 +15,6 @@ func main() {
 		config.Module,
 		handler.Module,
 		server.Module,
+		compression.Module,
 	).Run()
 }

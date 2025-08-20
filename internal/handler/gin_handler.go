@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 )
@@ -47,10 +48,11 @@ func (h *GinHandler) RegisterGetValue(r *gin.Engine) {
 func RegisterRoutes(r *gin.Engine, h *GinHandler) {
 	h.RegisterUpdate(r)
 	h.RegisterGetValue(r)
+	h.RegisterInfo(r)
 }
 
-func register(r *gin.Engine, h *GinHandler, l logger.Logger) {
-	r.Use(logger.Middleware(l))
+func register(r *gin.Engine, h *GinHandler, l logger.Logger, c compression.Compressor) {
+	r.Use(logger.Middleware(l), compression.Middleware(c))
 	RegisterRoutes(r, h)
 }
 

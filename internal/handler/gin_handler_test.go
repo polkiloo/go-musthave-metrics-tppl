@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
@@ -170,7 +171,9 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 	}
 	before := len(r.Routes())
 
-	register(r, h, l)
+	var c compression.Compressor = test.NewFakeCompressor("")
+
+	register(r, h, l, c)
 
 	if len(r.Handlers) == 0 {
 		t.Fatalf("expected global middleware to be added")

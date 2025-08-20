@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/collector"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sender"
 	"go.uber.org/fx"
@@ -67,11 +68,11 @@ var ModuleCollector = fx.Module("collector",
 	),
 )
 
-func ProvideSender(cfg AppConfig, l logger.Logger) ([]sender.SenderInterface, error) {
+func ProvideSender(cfg AppConfig, l logger.Logger, c compression.Compressor) ([]sender.SenderInterface, error) {
 	senders := make([]sender.SenderInterface, 0, 2)
 	senders = append(senders,
 		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l),
-		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l),
+		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c),
 	)
 	return senders, nil
 }

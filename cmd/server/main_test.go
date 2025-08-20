@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
@@ -19,6 +20,7 @@ func TestMain_WiringIsValid(t *testing.T) {
 		config.Module,
 		handler.Module,
 		server.Module,
+		compression.Module,
 		fx.NopLogger,
 	)
 	if err != nil {
