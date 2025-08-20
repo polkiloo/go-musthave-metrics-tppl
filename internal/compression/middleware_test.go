@@ -196,7 +196,6 @@ func TestMW_NoCompress_HEAD_and_204(t *testing.T) {
 		c.Status(http.StatusNoContent)
 	})
 
-	// HEAD
 	{
 		req := httptest.NewRequest(http.MethodHead, "/head", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
@@ -206,7 +205,6 @@ func TestMW_NoCompress_HEAD_and_204(t *testing.T) {
 			t.Fatalf("HEAD: unexpected CE %q", ce)
 		}
 	}
-	// 204
 	{
 		req := httptest.NewRequest(http.MethodGet, "/nocontent", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
@@ -223,7 +221,7 @@ func TestMW_RespectsExistingCE(t *testing.T) {
 	r.Use(Middleware(NewGzip(gzip.BestSpeed)))
 	r.GET("/prece", func(c *gin.Context) {
 		c.Header("Content-Type", "application/json")
-		c.Header("Content-Encoding", "deflate") // pre-set
+		c.Header("Content-Encoding", "deflate")
 		c.String(http.StatusOK, `{"x":1}`)
 	})
 
@@ -350,7 +348,7 @@ func TestMW_NoDecompress_WhenCEIsDifferent(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/x", bytes.NewReader(gzipBytesTB(t, []byte("data"))))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Encoding", "deflate") // not our compressor
+	req.Header.Set("Content-Encoding", "deflate")
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

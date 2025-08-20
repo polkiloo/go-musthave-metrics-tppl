@@ -74,4 +74,32 @@ func (m *MemStorage) GetCounter(name string) (int64, error) {
 	return m.counters.Get(name)
 }
 
+func (m *MemStorage) SetGauge(name string, value float64) {
+	m.gauges.Update(name, value)
+}
+
+func (m *MemStorage) SetCounter(name string, value int64) {
+	m.counters.Update(name, value)
+}
+
+func (m *MemStorage) AllGauges() map[string]float64 {
+	m.gauges.mu.RLock()
+	defer m.gauges.mu.RUnlock()
+	res := make(map[string]float64, len(m.gauges.data))
+	for k, v := range m.gauges.data {
+		res[k] = v
+	}
+	return res
+}
+
+func (m *MemStorage) AllCounters() map[string]int64 {
+	m.counters.mu.RLock()
+	defer m.counters.mu.RUnlock()
+	res := make(map[string]int64, len(m.counters.data))
+	for k, v := range m.counters.data {
+		res[k] = v
+	}
+	return res
+}
+
 var _ MetricStorage = NewMemStorage()

@@ -11,14 +11,10 @@ import (
 	commoncfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/common"
 )
 
-var (
-	ErrUnknownArgs = fmt.Errorf("unknown args")
-)
-
 type AgentFlags struct {
 	addressFlag       commoncfg.AddressFlagValue
-	ReportIntervalSec *int // nil если не задано
-	PollIntervalSec   *int // nil если не задано
+	ReportIntervalSec *int
+	PollIntervalSec   *int
 }
 
 var (

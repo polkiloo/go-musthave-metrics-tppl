@@ -32,7 +32,6 @@ func TestRespWriter_StartsOnFirstWrite_AndOnlyWhenCTAllowed(t *testing.T) {
 	rw.Close()
 }
 
-// если Content-Type не установлен — компрессия не включается
 func TestRespWriter_NoCompress_WhenCTEmpty(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -49,7 +48,6 @@ func TestRespWriter_NoCompress_WhenCTEmpty(t *testing.T) {
 	rw.Close()
 }
 
-// если CE уже установлен раньше — respwriter его уважает и не переопределяет
 func TestRespWriter_RespectsExistingCE(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

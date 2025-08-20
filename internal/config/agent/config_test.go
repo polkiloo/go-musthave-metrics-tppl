@@ -8,6 +8,14 @@ import (
 	"go.uber.org/fx"
 )
 
+var defaultAppConfig = agent.AppConfig{
+	Host:           agent.DefaultAppHost,
+	Port:           agent.DefaultAppPort,
+	PollInterval:   agent.DefaultAppPollInterval,
+	ReportInterval: agent.DefaultAppReportInterval,
+	LoopIterations: agent.DefaultLoopIterations,
+}
+
 func TestBuildAgentConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
 	withEnvMap(map[string]string{
 		EnvAddressVarName:        "",
@@ -19,17 +27,17 @@ func TestBuildAgentConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got.Host != agent.DefaultAppConfig.Host {
-				t.Fatalf("want default host %q, got %q", agent.DefaultAppConfig.Host, got.Host)
+			if got.Host != defaultAppConfig.Host {
+				t.Fatalf("want default host %q, got %q", defaultAppConfig.Host, got.Host)
 			}
-			if got.Port != agent.DefaultAppConfig.Port {
-				t.Fatalf("want default port %d, got %d", agent.DefaultAppConfig.Port, got.Port)
+			if got.Port != defaultAppConfig.Port {
+				t.Fatalf("want default port %d, got %d", defaultAppConfig.Port, got.Port)
 			}
-			if got.ReportInterval != agent.DefaultAppConfig.ReportInterval {
-				t.Fatalf("want default report interval %v, got %v", agent.DefaultAppConfig.ReportInterval, got.ReportInterval)
+			if got.ReportInterval != defaultAppConfig.ReportInterval {
+				t.Fatalf("want default report interval %v, got %v", defaultAppConfig.ReportInterval, got.ReportInterval)
 			}
-			if got.PollInterval != agent.DefaultAppConfig.PollInterval {
-				t.Fatalf("want default poll interval %v, got %v", agent.DefaultAppConfig.PollInterval, got.PollInterval)
+			if got.PollInterval != defaultAppConfig.PollInterval {
+				t.Fatalf("want default poll interval %v, got %v", defaultAppConfig.PollInterval, got.PollInterval)
 			}
 		})
 	})
@@ -140,7 +148,7 @@ func TestBuildAgentConfig_FlagEmptyHost_KeepDefaultHost_PortFromFlag(t *testing.
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got.Host != agent.DefaultAppConfig.Host {
+			if got.Host != defaultAppConfig.Host {
 				t.Fatalf("empty host in flags must not override default; got %q", got.Host)
 			}
 			if got.Port != 9000 {

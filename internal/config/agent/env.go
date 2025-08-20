@@ -14,10 +14,10 @@ const (
 )
 
 type AgentEnvVars struct {
-	Host              string // "" если не задано
-	Port              *int   // nil если не задано
-	ReportIntervalSec *int   // nil если не задано
-	PollIntervalSec   *int   // nil если не задано
+	Host              string
+	Port              *int
+	ReportIntervalSec *int
+	PollIntervalSec   *int
 }
 
 func getEnvVars() (AgentEnvVars, error) {

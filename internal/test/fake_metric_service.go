@@ -11,8 +11,10 @@ import (
 )
 
 type FakeMetricService struct {
-	Err    error
-	Metric models.Metrics
+	Err       error
+	Metric    models.Metrics
+	SaveCalls int
+	LoadCalls int
 }
 
 func (f *FakeMetricService) ProcessUpdate(m *models.Metrics) error {
@@ -42,6 +44,16 @@ func (f *FakeMetricService) ProcessGetValue(metricName string, metricType models
 		return nil, f.Err
 	}
 	return m, f.Err
+}
+
+func (f *FakeMetricService) SaveFile(path string) error {
+	f.SaveCalls++
+	return nil
+}
+
+func (f *FakeMetricService) LoadFile(path string) error {
+	f.LoadCalls++
+	return nil
 }
 
 func DoJSON(r *gin.Engine, url string, body any, contentType string) *httptest.ResponseRecorder {

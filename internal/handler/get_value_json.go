@@ -38,11 +38,6 @@ func (h *GinHandler) GetValueJSON(c *gin.Context) {
 		return
 	}
 
-	// if q.MType != "" && q.MType != metric.MType {
-	// 	c.AbortWithStatus(http.StatusBadRequest)
-	// 	return
-	// }
-
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, metric)
 }

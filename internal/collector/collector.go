@@ -67,7 +67,6 @@ func (c *Collector) Collect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// gauges
 	for name, get := range gaugeGetters {
 		val := get(&rtm)
 		f := float64(val)
@@ -80,7 +79,6 @@ func (c *Collector) Collect() {
 		}
 	}
 
-	// RandomValue
 	{
 		val := rand.Float64() * 100
 		if m, ok := c.metrics["RandomValue"]; ok && m.MType == models.GaugeType && m.Value != nil {
@@ -93,7 +91,6 @@ func (c *Collector) Collect() {
 		}
 	}
 
-	// counters
 	for name, get := range counterGetters {
 		inc := get(&rtm)
 		i := int64(inc)

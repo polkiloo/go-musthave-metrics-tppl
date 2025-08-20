@@ -12,6 +12,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 )
 
@@ -80,7 +81,6 @@ func TestRegisterGetValue_JSONRoute_ContentTypeCheck(t *testing.T) {
 	h := &GinHandler{service: fs}
 	r := newRouterWithHandler(h)
 
-	// Неверный Content-Type -> 415
 	w := test.DoJSON(r, "/value/", map[string]any{"id": "Alloc"}, "text/plain")
 	if w.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("POST /value wrong content-type: got %d, want %d", w.Code, http.StatusUnsupportedMediaType)
@@ -189,7 +189,7 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 }
 
 func TestNewGinHandler_ServiceConcreteTypeIsMetricService(t *testing.T) {
-	h := NewGinHandler()
+	h := NewGinHandler(service.NewMetricService())
 
 	got := reflect.TypeOf(h.service).String()
 	want := "*service.MetricService"

@@ -17,8 +17,8 @@ func TestBuildServerConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if cfg.Host != server.DefaultAppConfig.Host {
-				t.Fatalf("want default host %q, got %q", server.DefaultAppConfig.Host, cfg.Host)
+			if cfg.Host != server.DefaultAppHost {
+				t.Fatalf("want default host %q, got %q", server.DefaultAppHost, cfg.Host)
 			}
 		})
 	})

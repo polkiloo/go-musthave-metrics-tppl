@@ -3,8 +3,6 @@ package servercfg
 import (
 	"os"
 	"testing"
-
-	commoncfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/common"
 )
 
 func withArgs(args []string, fn func()) {
@@ -110,63 +108,41 @@ func TestParseFlags_UnknownFlag_Error(t *testing.T) {
 	})
 }
 
-func TestParseFlags_PositionalArg_Error(t *testing.T) {
-	withArgs([]string{"-a", "localhost:1234", "positional"}, func() {
-		_, err := parseFlags()
-		if err == nil {
-			t.Fatalf("expected ErrUnknownArgs")
+func TestParseFlags_StoreInterval(t *testing.T) {
+	withArgs([]string{"-i", "42"}, func() {
+		got, err := parseFlags()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.storeInterval == nil || *got.storeInterval != 42 {
+			t.Fatalf("store interval mismatch: %v", got.storeInterval)
+		}
+	})
+}
+func TestParseFlags_FileStorageAndRestore(t *testing.T) {
+	withArgs([]string{"-f", "/tmp/file.json", "-r=true"}, func() {
+		got, err := parseFlags()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.fileStorage != "/tmp/file.json" {
+			t.Fatalf("file storage mismatch: %q", got.fileStorage)
+		}
+		if got.restore == nil || *got.restore != true {
+			t.Fatalf("restore mismatch: %v", got.restore)
 		}
 	})
 }
 
-func TestFlagsValueMapper_Address_NonEmptyHost(t *testing.T) {
-	var dst ServerFlags
-	p := 9090
-	v := commoncfg.AddressFlagValue{Host: "example.com", Port: &p}
-	if err := flagsValueMapper(&dst, v); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if dst.addressFlag.Host != "example.com" {
-		t.Fatalf("host not applied: %q", dst.addressFlag.Host)
-	}
-	if dst.addressFlag.Port == nil || *dst.addressFlag.Port != 9090 {
-		t.Fatalf("port not applied: %v", dst.addressFlag.Port)
-	}
-}
-
-func TestFlagsValueMapper_Address_EmptyHost(t *testing.T) {
-	var dst ServerFlags
-	p := 6060
-	v := commoncfg.AddressFlagValue{Host: "", Port: &p}
-	if err := flagsValueMapper(&dst, v); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if dst.addressFlag.Host != "" {
-		t.Fatalf("empty host must not override, got %q", dst.addressFlag.Host)
-	}
-	if dst.addressFlag.Port == nil || *dst.addressFlag.Port != 6060 {
-		t.Fatalf("port not applied: %v", dst.addressFlag.Port)
-	}
-}
-
-func TestFlagsValueMapper_NilValue_NoChange(t *testing.T) {
-	var dst ServerFlags
-	if err := flagsValueMapper(&dst, nil); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if dst.addressFlag.Host != "" || dst.addressFlag.Port != nil {
-		t.Fatalf("dst must be unchanged, got %+v", dst)
-	}
-}
-
-type unknownValue struct{ X int }
-
-func TestFlagsValueMapper_UnknownType_Ignored(t *testing.T) {
-	var dst ServerFlags
-	if err := flagsValueMapper(&dst, unknownValue{X: 1}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if dst.addressFlag.Host != "" || dst.addressFlag.Port != nil {
-		t.Fatalf("dst must be unchanged on unknown type, got %+v", dst)
-	}
+func TestParseFlags_InvalidValues(t *testing.T) {
+	withArgs([]string{"-i", "bad"}, func() {
+		if _, err := parseFlags(); err == nil {
+			t.Fatalf("expected error for invalid -i")
+		}
+	})
+	withArgs([]string{"-r=badbool"}, func() {
+		if _, err := parseFlags(); err == nil {
+			t.Fatalf("expected error for invalid -r")
+		}
+	})
 }

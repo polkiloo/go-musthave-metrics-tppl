@@ -27,26 +27,19 @@ const (
 	DefaultLoopIterations    = 0
 )
 
-var DefaultAppConfig = AppConfig{
-	Host:           DefaultAppHost,
-	Port:           DefaultAppPort,
-	PollInterval:   DefaultAppPollInterval,
-	ReportInterval: DefaultAppReportInterval,
-	LoopIterations: DefaultLoopIterations,
-}
-
 func RunAgent(
+	ctx context.Context,
 	lc fx.Lifecycle,
 	collector collector.CollectorInterface,
 	senders []sender.SenderInterface,
 	cfg AgentLoopConfig,
 ) {
 	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			go AgentLoopSleep(collector, senders, cfg)
+		OnStart: func(context.Context) error {
+			go AgentLoopSleep(ctx, collector, senders, cfg)
 			return nil
 		},
-		OnStop: func(ctx context.Context) error {
+		OnStop: func(context.Context) error {
 			return nil
 		},
 	})

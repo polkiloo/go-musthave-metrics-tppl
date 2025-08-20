@@ -143,15 +143,6 @@ func TestParseFlags_UnknownFlag_Error(t *testing.T) {
 	})
 }
 
-func TestParseFlags_PositionalArg_Error(t *testing.T) {
-	withArgs([]string{"-a", "localhost:1234", "positional"}, func() {
-		_, err := parseFlags()
-		if err == nil {
-			t.Fatalf("expected ErrUnknownArgs")
-		}
-	})
-}
-
 func TestFlagsValueMapper_Address_NonEmptyHost(t *testing.T) {
 	var dst AgentFlags
 	p := 9090

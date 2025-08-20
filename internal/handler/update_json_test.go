@@ -99,6 +99,26 @@ func TestUpdateJSON_Success_Counter(t *testing.T) {
 	}
 }
 
+func TestUpdateJSON_AfterUpdateHook(t *testing.T) {
+	val := 1.0
+	gin.SetMode(gin.TestMode)
+	fs := &test.FakeMetricService{}
+	h := &GinHandler{service: fs}
+	called := 0
+	h.SetAfterUpdateHook(func() { called++ })
+	r := gin.New()
+	r.POST("/update", h.UpdateJSON)
+
+	m, _ := models.NewGaugeMetrics("g1", &val)
+	w := test.DoJSON(r, "/update", m, "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if called != 1 {
+		t.Fatalf("afterUpdate not called, got %d", called)
+	}
+}
+
 func setupRouterWithUpdateJSON(srvc *test.FakeMetricService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	h := &GinHandler{service: srvc}

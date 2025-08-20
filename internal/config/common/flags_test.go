@@ -75,7 +75,7 @@ func TestDispatcher_MergesHandlers_AllOK(t *testing.T) {
 	fs.Int("b", 0, "int flag")
 	fs.Bool("c", false, "bool flag")
 
-	out, err := NewDispatcher[agg](fs, applyToAgg).
+	out, err := NewDispatcher(fs, applyToAgg).
 		Handle("a", Lift(parseA)).
 		Handle("b", Lift(parseB)).
 		Handle("c", Lift(parseC)).
@@ -110,18 +110,6 @@ func TestDispatcher_PresentFalse_NotApplied(t *testing.T) {
 	}
 	if out.count != 1 {
 		t.Fatalf("want 1 application, got %d", out.count)
-	}
-}
-
-func TestDispatcher_PositionalArgs_Error(t *testing.T) {
-	fs := flag.NewFlagSet("t", flag.ContinueOnError)
-	fs.String("a", "def", "string flag")
-
-	_, err := NewDispatcher[agg](fs, applyToAgg).
-		Handle("a", Lift(parseA)).
-		Parse([]string{"-a", "x", "positional"})
-	if !errors.Is(err, ErrUnknownArgs) {
-		t.Fatalf("want ErrUnknownArgs, got %v", err)
 	}
 }
 

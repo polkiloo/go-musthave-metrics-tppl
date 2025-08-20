@@ -12,8 +12,8 @@ var (
 )
 
 type AddressFlagValue struct {
-	Host string // "" если не задано
-	Port *int   // nil если не задано
+	Host string
+	Port *int
 }
 
 var _ FlagValue = (*AddressFlagValue)(nil)

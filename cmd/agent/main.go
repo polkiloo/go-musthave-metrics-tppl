@@ -1,6 +1,10 @@
 package main
 
 import (
+	"context"
+	"os/signal"
+	"syscall"
+
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	agentcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/agent"
@@ -9,7 +13,11 @@ import (
 )
 
 func main() {
-	fx.New(
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	app := fx.New(
+		fx.Provide(func() context.Context { return ctx }),
 		logger.Module,
 		agentcfg.Module,
 		agent.ModuleCollector,
@@ -17,5 +25,7 @@ func main() {
 		agent.ModuleAgent,
 		agent.ModuleLoopConfig,
 		compression.Module,
-	).Run()
+	)
+
+	run(ctx, app)
 }

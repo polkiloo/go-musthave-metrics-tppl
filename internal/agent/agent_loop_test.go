@@ -1,6 +1,7 @@
 package agent_test
 
 import (
+	"context"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -21,7 +22,10 @@ func TestAgentLoopSleep_Basic(t *testing.T) {
 		Iterations:     10,
 	}
 
-	agent.AgentLoopSleep(c, []sender.SenderInterface{s}, cfg)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	agent.AgentLoopSleep(ctx, c, []sender.SenderInterface{s}, cfg)
 
 	assert.GreaterOrEqual(t, c.Collected, int32(10))
 	assert.Greater(t, atomic.LoadInt32(&s.Sends), int32(0))
@@ -32,13 +36,15 @@ func TestAgentLoopSleep_ZeroIterations(t *testing.T) {
 	s := &test.FakeAgentSender{}
 	done := make(chan struct{})
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 	go func() {
 		cfg := agent.AgentLoopConfig{
 			PollInterval:   1 * time.Millisecond,
 			ReportInterval: 2 * time.Millisecond,
 			Iterations:     0,
 		}
-		agent.AgentLoopSleep(c, []sender.SenderInterface{s}, cfg)
+		agent.AgentLoopSleep(ctx, c, []sender.SenderInterface{s}, cfg)
 		close(done)
 	}()
 	select {
@@ -57,7 +63,10 @@ func TestAgentLoopSleep_ReportIntervalLongerThanLoop(t *testing.T) {
 		ReportInterval: 100 * time.Millisecond,
 		Iterations:     3,
 	}
-	agent.AgentLoopSleep(c, []sender.SenderInterface{s}, cfg)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	agent.AgentLoopSleep(ctx, c, []sender.SenderInterface{s}, cfg)
 
 	assert.Equal(t, int32(0), atomic.LoadInt32(&s.Sends))
 }

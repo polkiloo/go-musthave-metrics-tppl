@@ -32,6 +32,10 @@ func (h *GinHandler) UpdateJSON(c *gin.Context) {
 		return
 	}
 
+	if h.afterUpdate != nil {
+		h.afterUpdate()
+	}
+
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, in)
 }

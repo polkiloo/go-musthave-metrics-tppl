@@ -10,11 +10,12 @@ import (
 )
 
 type GinHandler struct {
-	service service.MetricServiceInterface
+	service     service.MetricServiceInterface
+	afterUpdate func()
 }
 
-func NewGinHandler() *GinHandler {
-	return &GinHandler{service: service.NewMetricService()}
+func NewGinHandler(s service.MetricServiceInterface) *GinHandler {
+	return &GinHandler{service: s}
 }
 
 func (h *GinHandler) RegisterUpdate(r *gin.Engine) {
@@ -56,8 +57,12 @@ func register(r *gin.Engine, h *GinHandler, l logger.Logger, c compression.Compr
 	RegisterRoutes(r, h)
 }
 
+func (h *GinHandler) SetAfterUpdateHook(fn func()) { h.afterUpdate = fn }
+
+func (h *GinHandler) Service() service.MetricServiceInterface { return h.service }
+
 var Module = fx.Module(
 	"handler",
-	fx.Provide(NewGinHandler),
+	fx.Provide(func() service.MetricServiceInterface { return service.NewMetricService() }, NewGinHandler),
 	fx.Invoke(register),
 )

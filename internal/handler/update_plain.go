@@ -34,5 +34,9 @@ func (h *GinHandler) UpdatePlain(c *gin.Context) {
 		return
 	}
 
+	if h.afterUpdate != nil {
+		h.afterUpdate()
+	}
+
 	c.String(http.StatusOK, "ok")
 }

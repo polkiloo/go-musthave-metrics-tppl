@@ -7,44 +7,6 @@ import (
 	"testing"
 )
 
-// func TestInitSets(t *testing.T) {
-// 	t.Parallel()
-
-// 	GaugeSet = map[string]struct{}{}
-// 	CounterSet = map[string]struct{}{}
-// 	if IsGaugeName("Alloc") || IsCounterName("PollCount") {
-// 		t.Fatalf("sets must be empty before initSets")
-// 	}
-
-// 	initSets()
-
-// 	if !IsGaugeName("Alloc") {
-// 		t.Fatalf("gaugeSet not initialized with 'Alloc'")
-// 	}
-// 	if !IsCounterName("PollCount") {
-// 		t.Fatalf("counterSet not initialized with 'PollCount'")
-// 	}
-// }
-
-// func TestIsNameHelpers(t *testing.T) {
-// 	t.Parallel()
-// 	if !IsGaugeName("HeapAlloc") {
-// 		t.Errorf("expected HeapAlloc to be gauge")
-// 	}
-// 	if IsGaugeName("PollCount") {
-// 		t.Errorf("PollCount must not be gauge")
-// 	}
-// 	if !IsCounterName("PollCount") {
-// 		t.Errorf("expected PollCount to be counter")
-// 	}
-// 	if IsCounterName("Alloc") {
-// 		t.Errorf("Alloc must not be counter")
-// 	}
-// 	if IsGaugeName("___nope___") || IsCounterName("___nope___") {
-// 		t.Errorf("unknown names must not match")
-// 	}
-// }
-
 func TestNewGaugeMetrics(t *testing.T) {
 	t.Parallel()
 
@@ -70,16 +32,6 @@ func TestNewGaugeMetrics(t *testing.T) {
 	if m.Value != nil {
 		t.Fatalf("expected nil Value")
 	}
-
-	// _, err = NewGaugeMetrics("PollCount", &val)
-	// if !errors.Is(err, ErrMetricNameTypeMismatch) {
-	// 	t.Fatalf("expected ErrMetricNameTypeMismatch, got %v", err)
-	// }
-
-	// _, err = NewGaugeMetrics("UnknownGauge", &val)
-	// if !errors.Is(err, ErrMetricUnknownName) {
-	// 	t.Fatalf("expected ErrMetricUnknownName, got %v", err)
-	// }
 }
 
 func TestNewCounterMetrics(t *testing.T) {
@@ -107,16 +59,6 @@ func TestNewCounterMetrics(t *testing.T) {
 	if m.Delta != nil {
 		t.Fatalf("expected nil Delta")
 	}
-
-	// _, err = NewCounterMetrics("Alloc", &val)
-	// if !errors.Is(err, ErrMetricNameTypeMismatch) {
-	// 	t.Fatalf("expected ErrMetricNameTypeMismatch, got %v", err)
-	// }
-
-	// _, err = NewCounterMetrics("UnknownCounter", &val)
-	// if !errors.Is(err, ErrMetricUnknownName) {
-	// 	t.Fatalf("expected ErrUnknownMetricName, got %v", err)
-	// }
 }
 
 func TestNewMetrics_FromString(t *testing.T) {
@@ -205,52 +147,6 @@ func TestMarshalJSON_Success(t *testing.T) {
 	}
 }
 
-// func TestMarshalJSON_Errors(t *testing.T) {
-// 	t.Parallel()
-
-// 	var nilM *Metrics
-// 	b, err := nilM.MarshalJSON()
-// 	if err != nil {
-// 		t.Fatalf("unexpected error: %v", err)
-// 	}
-// 	if string(b) != "null" {
-// 		t.Fatalf("expected null, got %s", string(b))
-// 	}
-
-// 	m := &Metrics{ID: "Alloc", MType: MetricType("weird")}
-// 	_, err = m.MarshalJSON()
-// 	if !errors.Is(err, ErrMetricInvalidType) {
-// 		t.Fatalf("expected ErrMetricInvalidType, got %v", err)
-// 	}
-
-// 	m = &Metrics{ID: "Alloc", MType: GaugeType, Value: nil}
-// 	_, err = m.MarshalJSON()
-// 	if !errors.Is(err, ErrMetricMissingValue) {
-// 		t.Fatalf("expected ErrMetricMissingValue, got %v", err)
-// 	}
-
-// 	m = &Metrics{ID: "PollCount", MType: CounterType, Delta: nil}
-// 	_, err = m.MarshalJSON()
-// 	if !errors.Is(err, ErrMetricMissingValue) {
-// 		t.Fatalf("expected ErrMetricMissingValue, got %v", err)
-// 	}
-
-// 	val := 2.0
-// 	d := int64(3)
-// 	m = &Metrics{ID: "Alloc", MType: GaugeType, Value: &val, Delta: &d}
-// 	_, err = m.MarshalJSON()
-// 	if !errors.Is(err, ErrMetricAmbiguousValue) {
-// 		t.Fatalf("expected ErrMetricAmbiguousValue, got %v", err)
-// 	}
-
-// 	m = &Metrics{ID: "PollCount", MType: CounterType, Delta: &d, Value: &val}
-// 	_, err = m.MarshalJSON()
-// 	if !errors.Is(err, ErrMetricAmbiguousValue) {
-// 		t.Fatalf("expected ErrMetricAmbiguousValue, got %v", err)
-// 	}
-
-// }
-
 func TestUnmarshalJSON_Success(t *testing.T) {
 	t.Parallel()
 
@@ -280,42 +176,6 @@ func TestUnmarshalJSON_Errors(t *testing.T) {
 	if err := m.UnmarshalJSON([]byte(`{`)); err == nil {
 		t.Fatalf("expected syntax error")
 	}
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"Alloc","type":"weird"}`)); !errors.Is(err, ErrMetricInvalidType) {
-	// 	t.Fatalf("expected ErrInvalidType, got %v", err)
-	// }
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"Alloc","type":"gauge"}`)); !errors.Is(err, ErrMetricMissingValue) {
-	// 	t.Fatalf("expected ErrMetricMissingValue, got %v", err)
-	// }
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"PollCount","type":"counter"}`)); !errors.Is(err, ErrMetricMissingValue) {
-	// 	t.Fatalf("expected ErrMetricMissingValue, got %v", err)
-	// }
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"Alloc","type":"gauge","value":1.0,"delta":1}`)); !errors.Is(err, ErrMetricAmbiguousValue) {
-	// 	t.Fatalf("expected ErrMetricAmbiguousValue, got %v", err)
-	// }
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"PollCount","type":"counter","delta":1,"value":1.0}`)); !errors.Is(err, ErrMetricAmbiguousValue) {
-	// 	t.Fatalf("expected ErrMetricAmbiguousValue, got %v", err)
-	// }
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"Alloc","type":"counter","delta":1}`)); !errors.Is(err, ErrMetricNameTypeMismatch) {
-	// 	t.Fatalf("expected ErrMetricNameTypeMismatch, got %v", err)
-	// }
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"PollCount","type":"gauge","value":1.0}`)); !errors.Is(err, ErrMetricNameTypeMismatch) {
-	// 	t.Fatalf("expected ErrMetricNameTypeMismatch, got %v", err)
-	// }
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"NoSuchGauge","type":"gauge","value":1.0}`)); !errors.Is(err, ErrMetricUnknownName) {
-	// 	t.Fatalf("expected ErrUnknownMetricName, got %v", err)
-	// }
-
-	// if err := m.UnmarshalJSON([]byte(`{"id":"NoSuchCounter","type":"counter","delta":1}`)); !errors.Is(err, ErrMetricUnknownName) {
-	// 	t.Fatalf("expected ErrUnknownMetricName, got %v", err)
-	// }
 }
 
 func TestMetricTypes_OrderAndContents(t *testing.T) {

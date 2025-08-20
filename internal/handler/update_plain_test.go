@@ -109,3 +109,26 @@ func TestUpdate_UnknownMetric(t *testing.T) {
 	}
 
 }
+
+func TestUpdatePlain_AfterUpdateHook(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	fs := &test.FakeMetricService{}
+	h := &GinHandler{service: fs}
+	called := 0
+	h.SetAfterUpdateHook(func() { called++ })
+	r := gin.New()
+	r.POST("/update/:type/:name/:value", h.UpdatePlain)
+
+	j := float64(5.5)
+	m, _ := models.NewGaugeMetrics("g1", &j)
+	url := "/update/" + string(m.MType) + "/" + m.ID + "/" + strconv.FormatFloat(*m.Value, 'f', -1, 64)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, url, nil)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if called != 1 {
+		t.Fatalf("afterUpdate not called, got %d", called)
+	}
+}

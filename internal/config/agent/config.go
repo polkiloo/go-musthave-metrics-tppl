@@ -9,7 +9,14 @@ import (
 
 // ENV > FLAG > DEFAULT
 func buildAgentConfig() (agent.AppConfig, error) {
-	cfg := agent.DefaultAppConfig
+	var defaultAppConfig = agent.AppConfig{
+		Host:           agent.DefaultAppHost,
+		Port:           agent.DefaultAppPort,
+		PollInterval:   agent.DefaultAppPollInterval,
+		ReportInterval: agent.DefaultAppReportInterval,
+		LoopIterations: agent.DefaultLoopIterations,
+	}
+	cfg := defaultAppConfig
 
 	envVars, _ := getEnvVars()
 	flagArgs, _ := parseFlags()
@@ -43,5 +50,5 @@ func buildAgentConfig() (agent.AppConfig, error) {
 
 var Module = fx.Module(
 	"agent-config",
-	fx.Provide(buildAgentConfig), // -> (agent.AppConfig, error)
+	fx.Provide(buildAgentConfig),
 )

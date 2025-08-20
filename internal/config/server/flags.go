@@ -2,7 +2,7 @@ package servercfg
 
 import (
 	"flag"
-	"fmt"
+	"io"
 	"os"
 	"strconv"
 
@@ -11,46 +11,55 @@ import (
 )
 
 type ServerFlags struct {
-	addressFlag commoncfg.AddressFlagValue
+	addressFlag   commoncfg.AddressFlagValue
+	storeInterval *int
+	fileStorage   string
+	restore       *bool
 }
 
 var (
-	defaultAddress = server.DefaultAppHost + ":" + strconv.Itoa(server.DefaultAppPort)
+	defaultAddress       = server.DefaultAppHost + ":" + strconv.Itoa(server.DefaultAppPort)
+	defaultStoreInterval = server.DefaultStoreInterval
+	defaultFileStorage   = server.DefaultFileStoragePath
+	defaultRestore       = server.DefaultRestore
 )
 
 func parseFlags() (ServerFlags, error) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "Usage: %s [-a host:port]\n", os.Args[0])
-		fs.PrintDefaults()
-	}
+	fs.SetOutput(io.Discard)
 	fs.String("a", defaultAddress, "HTTP endpoint, e.g., localhost:8080 or :8080")
+	fs.Int("i", defaultStoreInterval, "store interval in seconds")
+	fs.String("f", defaultFileStorage, "path to file for metrics storage")
+	fs.Bool("r", defaultRestore, "restore metrics from file on start")
 
-	res, err := commoncfg.
-		NewDispatcher[ServerFlags](fs, flagsValueMapper).
-		Handle("a", commoncfg.Lift(commoncfg.ParseAddressFlag)).
-		Parse(os.Args[1:])
-
-	if err != nil {
+	if err := fs.Parse(os.Args[1:]); err != nil {
 		return ServerFlags{}, err
 	}
 
-	return res, nil
-}
+	flags := ServerFlags{}
+	set := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
 
-func flagsValueMapper(dst *ServerFlags, v commoncfg.FlagValue) error {
-	switch t := v.(type) {
-	case nil:
-		return nil
-	case commoncfg.AddressFlagValue:
-		if t.Host != "" {
-			dst.addressFlag.Host = t.Host
+	if set["a"] {
+		hp, err := commoncfg.ParseAddressFlag(fs.Lookup("a").Value.String(), true)
+		if err != nil {
+			return ServerFlags{}, err
 		}
-		if t.Port != nil {
-			dst.addressFlag.Port = t.Port
-		}
-		return nil
-	default:
-		return nil
+		flags.addressFlag = hp
 	}
+	if set["i"] {
+		v, _ := strconv.Atoi(fs.Lookup("i").Value.String())
+		flags.storeInterval = &v
+	}
+	if set["f"] {
+		flags.fileStorage = fs.Lookup("f").Value.String()
+	}
+	if set["r"] {
+		b, err := strconv.ParseBool(fs.Lookup("r").Value.String())
+		if err != nil {
+			return ServerFlags{}, err
+		}
+		flags.restore = &b
+	}
+	return flags, nil
 }

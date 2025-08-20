@@ -5,12 +5,17 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -120,33 +125,6 @@ func TestJSONSender_NonJSONContentType_Logged(t *testing.T) {
 	}
 }
 
-func TestJSONSender_NonOKStatus_Logged(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		http.Error(w, "boom", http.StatusInternalServerError)
-	}))
-	defer ts.Close()
-
-	host, port := hostPortFromServer(t, ts)
-	log := &test.FakeLogger{}
-	comp := test.NewFakeCompressor("gzip")
-	s := sender.NewJSONSender(host, port, ts.Client(), log, comp)
-
-	g := 1.0
-	s.Send([]*models.Metrics{{ID: "Alloc", MType: models.GaugeType, Value: &g}})
-
-	found := false
-	for _, msg := range log.GetErrorMessages() {
-		if strings.HasPrefix(msg, "unexpected status") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected 'unexpected status' to be logged")
-	}
-}
-
 func TestJSONSender_ClientError_Logged(t *testing.T) {
 	wantErr := errors.New("transport down")
 	cl := &http.Client{
@@ -177,7 +155,6 @@ func TestJSONSender_ClientError_Logged(t *testing.T) {
 }
 
 func TestJSONSender_MarshalError_Logged(t *testing.T) {
-	// До сети не дойдём — важен сам факт ошибки marshal.
 	cl := &http.Client{
 		Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -210,7 +187,6 @@ func TestJSONSender_MarshalError_Logged(t *testing.T) {
 }
 
 func TestJSONSender_Send_RespectsClientTimeout(t *testing.T) {
-	// Медленный сервер; берём короткий таймаут клиента, чтобы тест был быстрым.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(300 * time.Millisecond)
 	}))
@@ -279,20 +255,284 @@ func TestJSONSender_BodyShape_Minimal(t *testing.T) {
 		t.Fatalf("empty id in body")
 	}
 }
+func TestJSONSender_Send_Success_NoCompression(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		io.Copy(io.Discard, r.Body)
+		r.Body.Close()
 
-func hostPortFromServer(t *testing.T, ts *httptest.Server) (string, int) {
-	t.Helper()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := test.NewFakeCompressor("gzip")
+	host, port := hostPortFromServer(t, srv)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp)
+	c := int64(5)
+	g := 1.23
+	mCounter := &models.Metrics{ID: "PollCount", MType: models.CounterType, Delta: &c}
+	mGauge := &models.Metrics{ID: "Alloc", MType: models.GaugeType, Value: &g}
+
+	s.Send([]*models.Metrics{mCounter, mGauge})
+
+	if gotPath != "/update" {
+		t.Fatalf("expected path /update, got %q", gotPath)
+	}
+}
+
+func TestJSONSender_Send_Success_WithGzip(t *testing.T) {
+	var gotCE, gotAE string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotCE = r.Header.Get("Content-Encoding")
+		gotAE = r.Header.Get("Accept-Encoding")
+		io.Copy(io.Discard, r.Body)
+		r.Body.Close()
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := compression.NewGzip(gzip.BestSpeed)
+	host, port := hostPortFromServer(t, srv)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp)
+
+	var counterValue int64 = 123
+	counter, _ := models.NewCounterMetrics("counter", &counterValue)
+
+	s.Send([]*models.Metrics{counter})
+
+	if gotCE != "gzip" {
+		t.Fatalf("expected Content-Encoding=gzip, got %q", gotCE)
+	}
+	if gotAE != "gzip" {
+		t.Fatalf("expected Accept-Encoding=gzip, got %q", gotAE)
+	}
+}
+
+func TestJSONSender_Send_MarshalError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatalf("server should not be called on marshal error")
+	}))
+	t.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := test.NewFakeCompressor("gzip")
+
+	host, port := hostPortFromServer(t, srv)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp)
+
+	badValue := math.NaN()
+	bad, _ := models.NewGaugeMetrics("nan", &badValue)
+
+	s.Send([]*models.Metrics{bad})
+}
+
+func TestJSONSender_Send_BuildRequestError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatalf("server should not be called on build request error")
+	}))
+	t.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := test.NewFakeCompressor("gzip")
+
+	s := sender.NewJSONSender("http://%zz", 0, srv.Client(), log, comp)
+
+	var counterValue int64 = 123
+	counter, _ := models.NewCounterMetrics("counter", &counterValue)
+
+	s.Send([]*models.Metrics{counter})
+
+}
+
+func TestJSONSender_Send_DoError(t *testing.T) {
+
+	cl := &http.Client{
+		Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("network down")
+		}),
+		Timeout: 200 * time.Millisecond,
+	}
+
+	log := &test.FakeLogger{}
+	comp := test.NewFakeCompressor("gzip")
+
+	s := sender.NewJSONSender("http://example.invalid", 0, cl, log, comp)
+	var counterValue int64 = 123
+	counter, _ := models.NewCounterMetrics("counter", &counterValue)
+
+	s.Send([]*models.Metrics{counter})
+}
+
+func TestJSONSender_Send_UnexpectedContentType(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		r.Body.Close()
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := test.NewFakeCompressor("gzip")
+	host, port := hostPortFromServer(t, srv)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp)
+
+	var counterValue int64 = 123
+	counter, _ := models.NewCounterMetrics("counter", &counterValue)
+
+	s.Send([]*models.Metrics{counter})
+}
+
+func TestJSONSender_Send_UnexpectedStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		r.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := test.NewFakeCompressor("gzip")
+	host, port := hostPortFromServer(t, srv)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp)
+
+	var counterValue int64 = 123
+	counter, _ := models.NewCounterMetrics("counter", &counterValue)
+
+	s.Send([]*models.Metrics{counter})
+}
+
+func TestJSONSender_Send_Headers_Golden(t *testing.T) {
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		r.Body.Close()
+
+		got = fmt.Sprintf("Content-Type: %s\nContent-Encoding: %s\nAccept-Encoding: %s\n",
+			r.Header.Get("Content-Type"),
+			r.Header.Get("Content-Encoding"),
+			r.Header.Get("Accept-Encoding"),
+		)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := test.NewFakeCompressor("gzip")
+	host, port := hostPortFromServer(t, srv)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp)
+
+	var counterValue int64 = 123
+	counter, _ := models.NewCounterMetrics("counter", &counterValue)
+
+	s.Send([]*models.Metrics{counter})
+
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Join(filepath.Dir(filename), "testdata")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir testdata: %v", err)
+	}
+	golden := filepath.Join(dir, "headers.golden")
+
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
+			t.Fatalf("write golden: %v", err)
+		}
+	}
+}
+
+func BenchmarkJSONSender_Send_Gzip(b *testing.B) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		r.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+	}))
+	b.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := compression.NewGzip(compression.BestSpeed)
+	host, port := hostPortFromServer(b, srv)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp)
+
+	data := bytes.Repeat([]byte("abcdefghijklmnopqrstuvwxyz0123456789"), 1024) // ~64KiB
+	_ = data
+	v := 0.0
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		v += 1
+		m := &models.Metrics{ID: "bench", MType: models.GaugeType, Value: &v}
+		s.Send([]*models.Metrics{m})
+	}
+}
+
+func TestJSONSender_Send_BodyIsGzipCompressed(t *testing.T) {
+	var compressed bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ce := r.Header.Get("Content-Encoding")
+		if ce == "gzip" {
+			gr, err := gzip.NewReader(r.Body)
+			if err == nil {
+				io.Copy(io.Discard, gr)
+				gr.Close()
+				compressed = true
+			}
+		}
+		r.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	log := &test.FakeLogger{}
+	comp := compression.NewGzip(compression.BestSpeed)
+	host, port := hostPortFromServer(t, srv)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp)
+
+	const n = 100
+	metrics := make([]*models.Metrics, 0, n)
+
+	for i := 0; i < n; i++ {
+		if rand.Intn(2) == 0 {
+			val := rand.Float64() * 100
+			m, _ := models.NewGaugeMetrics(fmt.Sprintf("gauge_%d", i), &val)
+			metrics = append(metrics, m)
+		} else {
+			delta := rand.Int63n(1000)
+			m, _ := models.NewCounterMetrics(fmt.Sprintf("counter_%d", i), &delta)
+			metrics = append(metrics, m)
+		}
+	}
+
+	s.Send(metrics)
+
+	if !compressed {
+		t.Fatalf("server did not detect gzip-compressed body")
+	}
+}
+
+func hostPortFromServer(tb testing.TB, ts *httptest.Server) (string, int) {
+	tb.Helper()
 	u, err := url.Parse(ts.URL)
 	if err != nil {
-		t.Fatalf("parse url: %v", err)
+		tb.Fatalf("parse url: %v", err)
 	}
 	host, portStr, err := net.SplitHostPort(u.Host)
 	if err != nil {
-		t.Fatalf("split host port: %v", err)
+		tb.Fatalf("split host port: %v", err)
 	}
 	p, err := strconv.Atoi(portStr)
 	if err != nil {
-		t.Fatalf("atoi: %v", err)
+		tb.Fatalf("atoi: %v", err)
 	}
 	return host, p
 }

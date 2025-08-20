@@ -27,7 +27,7 @@ func TestRunAgent_RegistersHooksAndStartsLoop_WithChan(t *testing.T) {
 
 	lc := &fakeLifecycle{}
 
-	RunAgent(lc, collector, []sender.SenderInterface{s}, cfg)
+	RunAgent(context.Background(), lc, collector, []sender.SenderInterface{s}, cfg)
 	assert.Len(t, lc.hooks, 1)
 
 	err := lc.hooks[0].OnStart(context.Background())
@@ -95,4 +95,38 @@ func TestProvideCollector_ReturnsCollector(t *testing.T) {
 	if c == nil {
 		t.Fatal("expected non-nil collector, got nil")
 	}
+}
+
+func TestRunAgent_AppContextCancellationStopsLoop(t *testing.T) {
+	collector := &test.FakeCollector{}
+	s := &test.FakeAgentSenderWithChan{Ch: make(chan struct{}, 1)}
+	cfg := AgentLoopConfig{
+		PollInterval:   1 * time.Millisecond,
+		ReportInterval: 2 * time.Millisecond,
+		Iterations:     0,
+	}
+
+	appCtx, appCancel := context.WithCancel(context.Background())
+	lc := &fakeLifecycle{}
+	RunAgent(appCtx, lc, collector, []sender.SenderInterface{s}, cfg)
+	assert.Len(t, lc.hooks, 1)
+
+	err := lc.hooks[0].OnStart(context.Background())
+	assert.NoError(t, err)
+
+	select {
+	case <-s.Ch:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Send was not called before cancel")
+	}
+
+	appCancel()
+
+	select {
+	case <-s.Ch:
+		t.Fatal("unexpected Send after context cancel")
+	case <-time.After(10 * time.Millisecond):
+	}
+
+	assert.NoError(t, lc.hooks[0].OnStop(context.Background()))
 }

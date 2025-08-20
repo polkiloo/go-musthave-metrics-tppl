@@ -2,12 +2,7 @@ package commoncfg
 
 import (
 	"flag"
-	"fmt"
 	"io"
-)
-
-var (
-	ErrUnknownArgs = fmt.Errorf("unknown args")
 )
 
 type FlagValue interface{}
@@ -48,10 +43,6 @@ func (d *Dispatcher[U]) Parse(args []string) (U, error) {
 
 	set := map[string]bool{}
 	d.fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
-
-	if d.fs.NArg() > 0 {
-		return zero, ErrUnknownArgs
-	}
 
 	out := zero
 	for name, h := range d.handlers {

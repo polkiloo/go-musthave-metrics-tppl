@@ -84,6 +84,52 @@ func TestGetEnvVars_SetInvalid(t *testing.T) {
 	})
 }
 
+func TestGetEnvVars_StoreInterval(t *testing.T) {
+	withEnv(EnvStoreIntervalVarName, "10", func() {
+		got, err := getEnvVars()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.StoreInterval == nil || *got.StoreInterval != 10 {
+			t.Fatalf("want StoreInterval=10, got %v", got.StoreInterval)
+		}
+	})
+}
+
+func TestGetEnvVars_FileStorageAndRestore(t *testing.T) {
+	withEnv(EnvFileStorageVarName, "/tmp/file.json", func() {
+		withEnv(EnvRestoreVarName, "true", func() {
+			got, err := getEnvVars()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.FileStorage != "/tmp/file.json" {
+				t.Fatalf("file path mismatch: %q", got.FileStorage)
+			}
+			if got.Restore == nil || *got.Restore != true {
+				t.Fatalf("want Restore=true, got %v", got.Restore)
+			}
+		})
+	})
+}
+
+func TestGetEnvVars_InvalidStoreIntervalOrRestore(t *testing.T) {
+	withEnv(EnvStoreIntervalVarName, "bad", func() {
+		withEnv(EnvRestoreVarName, "badbool", func() {
+			got, err := getEnvVars()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.StoreInterval != nil {
+				t.Fatalf("want StoreInterval nil, got %v", *got.StoreInterval)
+			}
+			if got.Restore != nil {
+				t.Fatalf("want Restore nil, got %v", *got.Restore)
+			}
+		})
+	})
+}
+
 func TestGetEnvVars_SetIPv6Bracketed(t *testing.T) {
 	withEnv(EnvAddressVarName, "[2001:db8::1]:9091", func() {
 		got, err := getEnvVars()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"syscall"
 	"testing"
@@ -15,6 +16,7 @@ import (
 
 func TestMain_WiringIsValid(t *testing.T) {
 	err := fx.ValidateApp(
+		fx.Provide(func() context.Context { return context.Background() }),
 		logger.Module,
 		agentcfg.Module,
 		agent.ModuleCollector,

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -101,6 +102,44 @@ func TestProcessGet_NotFound(t *testing.T) {
 	_, err := svc.ProcessGetValue("not_exist", models.GaugeType)
 	if err == nil {
 		t.Errorf("expected error for missing gauge, got nil")
+	}
+}
+
+func TestMetricService_SaveLoadFile(t *testing.T) {
+	svc := NewMetricService()
+	f := float64(1.23)
+	g, _ := models.NewGaugeMetrics("g", &f)
+	_ = svc.ProcessUpdate(g)
+	cval := int64(7)
+	c, _ := models.NewCounterMetrics("c", &cval)
+	_ = svc.ProcessUpdate(c)
+
+	tmp := filepath.Join(t.TempDir(), "m.json")
+	if err := svc.SaveFile(tmp); err != nil {
+		t.Fatalf("SaveFile error: %v", err)
+	}
+
+	svc2 := NewMetricService()
+	if err := svc2.LoadFile(tmp); err != nil {
+		t.Fatalf("LoadFile error: %v", err)
+	}
+	gv, err := svc2.ProcessGetValue("g", models.GaugeType)
+	if err != nil || *gv.Value != f {
+		t.Fatalf("gauge mismatch: %v %v", gv, err)
+	}
+	cv, err := svc2.ProcessGetValue("c", models.CounterType)
+	if err != nil || *cv.Delta != cval {
+		t.Fatalf("counter mismatch: %v %v", cv, err)
+	}
+}
+
+func TestMetricService_SaveLoadFile_EmptyPath(t *testing.T) {
+	svc := NewMetricService()
+	if err := svc.SaveFile(""); err != nil {
+		t.Fatalf("SaveFile empty path: %v", err)
+	}
+	if err := svc.LoadFile(""); err != nil {
+		t.Fatalf("LoadFile empty path: %v", err)
 	}
 }
 

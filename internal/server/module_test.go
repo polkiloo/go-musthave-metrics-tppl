@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 	"go.uber.org/fx"
 )
@@ -41,8 +42,9 @@ func TestRun_OnStart_SuccessPath_CoversGoroutine(t *testing.T) {
 	}
 
 	logger := &test.FakeLogger{}
+	hand := handler.NewGinHandler(&test.FakeMetricService{})
+	run(lc, engine, cfg, logger, hand)
 
-	run(lc, engine, cfg, logger)
 	if len(lc.hooks) != 1 {
 		t.Fatalf("expected 1 hook, got %d", len(lc.hooks))
 	}
@@ -91,7 +93,9 @@ func TestRun_OnStart_FailurePath_CoversFatal(t *testing.T) {
 
 	logger := &test.FakeLogger{}
 
-	run(lc, engine, cfg, logger)
+	hand := handler.NewGinHandler(&test.FakeMetricService{})
+	run(lc, engine, cfg, logger, hand)
+
 	if len(lc.hooks) != 1 {
 		t.Fatalf("expected 1 hook, got %d", len(lc.hooks))
 	}
