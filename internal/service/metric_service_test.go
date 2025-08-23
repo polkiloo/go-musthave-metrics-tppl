@@ -1,49 +1,35 @@
 package service
 
 import (
-	"strconv"
+	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
 func TestProcessUpdate_Gauge(t *testing.T) {
 	svc := NewMetricService()
-
-	err := svc.ProcessUpdate("gauge", "g1", "3.14")
+	m := &models.Metrics{ID: "g1", MType: models.GaugeType, Value: Float64Ptr(3.14)}
+	err := svc.ProcessUpdate(m)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
-	}
-
-	err = svc.ProcessUpdate("gauge", "g2", "notfloat")
-	if err == nil {
-		t.Errorf("expected error on invalid gauge value, got nil")
 	}
 }
 
 func TestProcessUpdate_Counter(t *testing.T) {
 	svc := NewMetricService()
 
-	err := svc.ProcessUpdate("counter", "c1", "10")
+	m := &models.Metrics{ID: "c1", MType: models.CounterType, Delta: Int64Ptr(10)}
+	err := svc.ProcessUpdate(m)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	err = svc.ProcessUpdate("counter", "c1", "5")
+	m = &models.Metrics{ID: "c1", MType: models.CounterType, Delta: Int64Ptr(5)}
+	err = svc.ProcessUpdate(m)
 	if err != nil {
 		t.Fatalf("expected no error on accumulation, got %v", err)
-	}
-
-	err = svc.ProcessUpdate("counter", "c2", "notint")
-	if err == nil {
-		t.Errorf("expected error on invalid counter value, got nil")
-	}
-}
-
-func TestProcessUpdate_UnknownType(t *testing.T) {
-	svc := NewMetricService()
-	err := svc.ProcessUpdate("unknown", "x", "1")
-	if err == nil {
-		t.Errorf("expected error on unknown metric type, got nil")
 	}
 }
 
@@ -57,7 +43,9 @@ func TestProcessUpdate_Concurrent(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < n; i++ {
-			err := svc.ProcessUpdate("gauge", "gauge", strconv.Itoa(i)+".0")
+			f := float64(i)
+			m, _ := models.NewGaugeMetrics(models.GaugeNames[0], &f)
+			err := svc.ProcessUpdate(m)
 			if err != nil {
 				t.Errorf("gauge update error: %v", err)
 			}
@@ -67,7 +55,9 @@ func TestProcessUpdate_Concurrent(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < n; i++ {
-			err := svc.ProcessUpdate("counter", "counter", "1")
+			j := int64(i)
+			m, _ := models.NewCounterMetrics(models.CounterNames[0], &j)
+			err := svc.ProcessUpdate(m)
 			if err != nil {
 				t.Errorf("counter update error: %v", err)
 			}
@@ -79,46 +69,79 @@ func TestProcessUpdate_Concurrent(t *testing.T) {
 
 func TestProcessGet_Gauge(t *testing.T) {
 	svc := NewMetricService()
-	_ = svc.ProcessUpdate("gauge", "g1", "2.71")
+	f := float64(2.71)
+	m, _ := models.NewGaugeMetrics(models.GaugeNames[0], &f)
+	_ = svc.ProcessUpdate(m)
 
-	val, err := svc.ProcessGetValue("gauge", "g1")
+	val, err := svc.ProcessGetValue(m.ID, m.MType)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if val != "2.71" {
-		t.Errorf("expected value '2.71', got %q", val)
+	if *val.Value != f {
+		t.Errorf("expected value '%f', got %f", f, *val.Value)
 	}
 }
 
 func TestProcessGet_Counter(t *testing.T) {
 	svc := NewMetricService()
-	_ = svc.ProcessUpdate("counter", "c1", "42")
+	j := int64(42)
+	m, _ := models.NewCounterMetrics(models.CounterNames[0], &j)
+	_ = svc.ProcessUpdate(m)
 
-	val, err := svc.ProcessGetValue("counter", "c1")
+	val, err := svc.ProcessGetValue(m.ID, m.MType)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if val != "42" {
-		t.Errorf("expected value '42', got %q", val)
-	}
-}
-
-func TestProcessGet_UnknownType(t *testing.T) {
-	svc := NewMetricService()
-	_, err := svc.ProcessGetValue("unknown", "x")
-	if err == nil {
-		t.Errorf("expected error for unknown metric type, got nil")
+	if *val.Delta != j {
+		t.Errorf("expected value '%d', got %d", j, *val.Delta)
 	}
 }
 
 func TestProcessGet_NotFound(t *testing.T) {
 	svc := NewMetricService()
-	_, err := svc.ProcessGetValue("gauge", "not_exist")
+	_, err := svc.ProcessGetValue("not_exist", models.GaugeType)
 	if err == nil {
 		t.Errorf("expected error for missing gauge, got nil")
 	}
-	_, err = svc.ProcessGetValue("counter", "not_exist")
-	if err == nil {
-		t.Errorf("expected error for missing counter, got nil")
+}
+
+func TestMetricService_SaveLoadFile(t *testing.T) {
+	svc := NewMetricService()
+	f := float64(1.23)
+	g, _ := models.NewGaugeMetrics("g", &f)
+	_ = svc.ProcessUpdate(g)
+	cval := int64(7)
+	c, _ := models.NewCounterMetrics("c", &cval)
+	_ = svc.ProcessUpdate(c)
+
+	tmp := filepath.Join(t.TempDir(), "m.json")
+	if err := svc.SaveFile(tmp); err != nil {
+		t.Fatalf("SaveFile error: %v", err)
+	}
+
+	svc2 := NewMetricService()
+	if err := svc2.LoadFile(tmp); err != nil {
+		t.Fatalf("LoadFile error: %v", err)
+	}
+	gv, err := svc2.ProcessGetValue("g", models.GaugeType)
+	if err != nil || *gv.Value != f {
+		t.Fatalf("gauge mismatch: %v %v", gv, err)
+	}
+	cv, err := svc2.ProcessGetValue("c", models.CounterType)
+	if err != nil || *cv.Delta != cval {
+		t.Fatalf("counter mismatch: %v %v", cv, err)
 	}
 }
+
+func TestMetricService_SaveLoadFile_EmptyPath(t *testing.T) {
+	svc := NewMetricService()
+	if err := svc.SaveFile(""); err != nil {
+		t.Fatalf("SaveFile empty path: %v", err)
+	}
+	if err := svc.LoadFile(""); err != nil {
+		t.Fatalf("LoadFile empty path: %v", err)
+	}
+}
+
+func Float64Ptr(v float64) *float64 { return &v }
+func Int64Ptr(v int64) *int64       { return &v }

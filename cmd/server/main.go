@@ -1,25 +1,30 @@
 package main
 
 import (
-	"log"
-	"os"
+	"context"
+	"os/signal"
+	"syscall"
 
-	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
+	"go.uber.org/fx"
 )
 
 func main() {
-	addr, err := parseFlags(os.Args[1:])
-	if err != nil {
-		log.Fatalf("Error parsing flags: %v", err)
-	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	r := gin.Default()
-	h := handler.NewGinHandler()
-	handler.RegisterRoutes(r, h)
+	app := fx.New(
+		fx.Provide(func() context.Context { return ctx }),
+		logger.Module,
+		config.Module,
+		handler.Module,
+		server.Module,
+		compression.Module,
+	)
 
-	log.Printf("Server listening on http://%s", addr)
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("Server failed: %v", err)
-	}
+	run(ctx, app)
 }

@@ -1,25 +1,31 @@
 package main
 
 import (
-	"log"
+	"context"
+	"os/signal"
+	"syscall"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	agentcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/agent"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"go.uber.org/fx"
 )
 
 func main() {
-	args, err := parseFlags()
-	if err != nil {
-		log.Fatalf("flags: %v", err)
-	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	app := fx.New(
-		fx.Provide(
-			func() agent.AppConfig { return args.ToAppConfig() },
-			agent.ProvideCollector,
-			agent.ProvideSender,
-			agent.ProvideConfig,
-		),
-		fx.Invoke(agent.RunAgent),
+		fx.Provide(func() context.Context { return ctx }),
+		logger.Module,
+		agentcfg.Module,
+		agent.ModuleCollector,
+		agent.ModuleSender,
+		agent.ModuleAgent,
+		agent.ModuleLoopConfig,
+		compression.Module,
 	)
-	app.Run()
+
+	run(ctx, app)
 }
