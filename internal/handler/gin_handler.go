@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 )
@@ -46,15 +47,22 @@ func (h *GinHandler) RegisterGetValue(r *gin.Engine) {
 	})
 }
 
-func RegisterRoutes(r *gin.Engine, h *GinHandler) {
+func (h *GinHandler) RegisterPing(r *gin.Engine, pool db.Pool) {
+	r.GET("/ping", func(c *gin.Context) {
+		h.Ping(c, pool)
+	})
+}
+
+func RegisterRoutes(r *gin.Engine, h *GinHandler, pool db.Pool) {
 	h.RegisterUpdate(r)
 	h.RegisterGetValue(r)
 	h.RegisterInfo(r)
+	h.RegisterPing(r, pool)
 }
 
-func register(r *gin.Engine, h *GinHandler, l logger.Logger, c compression.Compressor) {
+func register(r *gin.Engine, h *GinHandler, l logger.Logger, c compression.Compressor, pool db.Pool) {
 	r.Use(logger.Middleware(l), compression.Middleware(c))
-	RegisterRoutes(r, h)
+	RegisterRoutes(r, h, pool)
 }
 
 func (h *GinHandler) SetAfterUpdateHook(fn func()) { h.afterUpdate = fn }
