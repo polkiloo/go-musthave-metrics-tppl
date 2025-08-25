@@ -6,7 +6,9 @@ import (
 	"syscall"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	dbcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/db"
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
@@ -21,6 +23,8 @@ func main() {
 		fx.Provide(func() context.Context { return ctx }),
 		logger.Module,
 		config.Module,
+		dbcfg.Module,
+		db.Module,
 		handler.Module,
 		server.Module,
 		compression.Module,

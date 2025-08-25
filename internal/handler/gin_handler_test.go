@@ -146,7 +146,7 @@ func TestRegisterRoutes_RegistersOnce_NoPanic(t *testing.T) {
 
 	before := len(r.Routes())
 
-	RegisterRoutes(r, h)
+	RegisterRoutes(r, h, nil)
 
 	after := len(r.Routes())
 	if after <= before {
@@ -173,7 +173,7 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 
 	var c compression.Compressor = test.NewFakeCompressor("")
 
-	register(r, h, l, c)
+	register(r, h, l, c, nil)
 
 	if len(r.Handlers) == 0 {
 		t.Fatalf("expected global middleware to be added")
