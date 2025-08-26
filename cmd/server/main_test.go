@@ -22,6 +22,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 	"go.uber.org/fx"
 )
 
@@ -32,6 +33,7 @@ func TestMain_WiringIsValid(t *testing.T) {
 		config.Module,
 		dbcfg.Module,
 		db.Module,
+		service.Module,
 		handler.Module,
 		server.Module,
 		compression.Module,

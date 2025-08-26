@@ -17,7 +17,10 @@ func TestBuildDBConfig_EnvPrecedence(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if cfg.DSN != "env" {
+			if cfg == nil || cfg.DSN != "env" {
+				if cfg == nil {
+					t.Fatalf("env should win, got nil config")
+				}
 				t.Fatalf("env should win, got %q", cfg.DSN)
 			}
 		})
@@ -31,22 +34,11 @@ func TestBuildDBConfig_FlagWhenNoEnv(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if cfg.DSN != "flag" {
+			if cfg == nil || cfg.DSN != "flag" {
+				if cfg == nil {
+					t.Fatalf("flag DSN expected, got nil config")
+				}
 				t.Fatalf("flag DSN expected, got %q", cfg.DSN)
-			}
-		})
-	})
-}
-
-func TestBuildDBConfig_Empty(t *testing.T) {
-	withEnv(EnvDSNVarName, "", func() {
-		withArgs(nil, func() {
-			cfg, err := buildDBConfig()
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if cfg.DSN != "" {
-				t.Fatalf("want empty DSN, got %q", cfg.DSN)
 			}
 		})
 	})

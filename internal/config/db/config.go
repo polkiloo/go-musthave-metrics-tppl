@@ -9,14 +9,13 @@ func buildDBConfig() (*db.Config, error) {
 	env, _ := getEnvVars()
 	flags, _ := parseFlags()
 
-	cfg := &db.Config{}
-
+	dsn := ""
 	if env.DSN != "" {
-		cfg.DSN = env.DSN
+		dsn = env.DSN
 	} else if flags.DSN != "" {
-		cfg.DSN = flags.DSN
+		dsn = flags.DSN
 	}
-	return cfg, nil
+	return &db.Config{DSN: dsn}, nil
 }
 
 var Module = fx.Module(

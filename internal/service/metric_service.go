@@ -24,8 +24,8 @@ type MetricService struct {
 	store storage.MetricStorage
 }
 
-func NewMetricService() *MetricService {
-	return &MetricService{store: storage.NewMemStorage()}
+func NewMetricService(store storage.MetricStorage) *MetricService {
+	return &MetricService{store: store}
 }
 
 func (s *MetricService) ProcessUpdate(m *models.Metrics) error {
@@ -138,4 +138,4 @@ func (s *MetricService) LoadFile(path string) error {
 	return nil
 }
 
-var _ MetricServiceInterface = NewMetricService()
+var _ MetricServiceInterface = NewMetricService(nil)

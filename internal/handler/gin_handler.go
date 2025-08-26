@@ -57,12 +57,21 @@ func RegisterRoutes(r *gin.Engine, h *GinHandler, pool db.Pool) {
 	h.RegisterUpdate(r)
 	h.RegisterGetValue(r)
 	h.RegisterInfo(r)
-	h.RegisterPing(r, pool)
+	if pool != nil {
+		h.RegisterPing(r, pool)
+	}
 }
 
-func register(r *gin.Engine, h *GinHandler, l logger.Logger, c compression.Compressor, pool db.Pool) {
-	r.Use(logger.Middleware(l), compression.Middleware(c))
-	RegisterRoutes(r, h, pool)
+func register(p struct {
+	fx.In
+	R    *gin.Engine
+	H    *GinHandler
+	L    logger.Logger
+	C    compression.Compressor
+	Pool db.Pool `optional:"true"`
+}) {
+	p.R.Use(logger.Middleware(p.L), compression.Middleware(p.C))
+	RegisterRoutes(p.R, p.H, p.Pool)
 }
 
 func (h *GinHandler) SetAfterUpdateHook(fn func()) { h.afterUpdate = fn }
@@ -71,6 +80,6 @@ func (h *GinHandler) Service() service.MetricServiceInterface { return h.service
 
 var Module = fx.Module(
 	"handler",
-	fx.Provide(func() service.MetricServiceInterface { return service.NewMetricService() }, NewGinHandler),
+	fx.Provide(NewGinHandler),
 	fx.Invoke(register),
 )
