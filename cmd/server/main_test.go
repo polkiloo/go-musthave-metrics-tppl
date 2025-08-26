@@ -15,18 +15,25 @@ import (
 	"time"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	dbcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/db"
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 	"go.uber.org/fx"
 )
 
 func TestMain_WiringIsValid(t *testing.T) {
 	err := fx.ValidateApp(
+		fx.Provide(func() context.Context { return context.Background() }),
 		logger.Module,
 		config.Module,
+		dbcfg.Module,
+		db.Module,
+		service.Module,
 		handler.Module,
 		server.Module,
 		compression.Module,

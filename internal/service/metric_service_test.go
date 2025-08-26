@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/storage"
 )
 
 func TestProcessUpdate_Gauge(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	m := &models.Metrics{ID: "g1", MType: models.GaugeType, Value: Float64Ptr(3.14)}
 	err := svc.ProcessUpdate(m)
 	if err != nil {
@@ -18,7 +19,7 @@ func TestProcessUpdate_Gauge(t *testing.T) {
 }
 
 func TestProcessUpdate_Counter(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 
 	m := &models.Metrics{ID: "c1", MType: models.CounterType, Delta: Int64Ptr(10)}
 	err := svc.ProcessUpdate(m)
@@ -34,7 +35,7 @@ func TestProcessUpdate_Counter(t *testing.T) {
 }
 
 func TestProcessUpdate_Concurrent(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	var wg sync.WaitGroup
 
 	n := 1000
@@ -68,7 +69,7 @@ func TestProcessUpdate_Concurrent(t *testing.T) {
 }
 
 func TestProcessGet_Gauge(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	f := float64(2.71)
 	m, _ := models.NewGaugeMetrics(models.GaugeNames[0], &f)
 	_ = svc.ProcessUpdate(m)
@@ -83,7 +84,7 @@ func TestProcessGet_Gauge(t *testing.T) {
 }
 
 func TestProcessGet_Counter(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	j := int64(42)
 	m, _ := models.NewCounterMetrics(models.CounterNames[0], &j)
 	_ = svc.ProcessUpdate(m)
@@ -98,7 +99,7 @@ func TestProcessGet_Counter(t *testing.T) {
 }
 
 func TestProcessGet_NotFound(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	_, err := svc.ProcessGetValue("not_exist", models.GaugeType)
 	if err == nil {
 		t.Errorf("expected error for missing gauge, got nil")
@@ -106,7 +107,7 @@ func TestProcessGet_NotFound(t *testing.T) {
 }
 
 func TestMetricService_SaveLoadFile(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	f := float64(1.23)
 	g, _ := models.NewGaugeMetrics("g", &f)
 	_ = svc.ProcessUpdate(g)
@@ -119,7 +120,7 @@ func TestMetricService_SaveLoadFile(t *testing.T) {
 		t.Fatalf("SaveFile error: %v", err)
 	}
 
-	svc2 := NewMetricService()
+	svc2 := NewMetricService(storage.NewMemStorage())
 	if err := svc2.LoadFile(tmp); err != nil {
 		t.Fatalf("LoadFile error: %v", err)
 	}
@@ -134,7 +135,7 @@ func TestMetricService_SaveLoadFile(t *testing.T) {
 }
 
 func TestMetricService_SaveLoadFile_EmptyPath(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	if err := svc.SaveFile(""); err != nil {
 		t.Fatalf("SaveFile empty path: %v", err)
 	}
