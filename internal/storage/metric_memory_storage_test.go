@@ -3,6 +3,8 @@ package storage
 import (
 	"sync"
 	"testing"
+
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
 func TestMemStorage_UpdateAndGetGauge(t *testing.T) {
@@ -181,5 +183,56 @@ func TestMemStorage_SetGauge(t *testing.T) {
 	v, err := m.GetGauge("c")
 	if err != nil || v != 1.23 {
 		t.Fatalf("SetGauge failed: %v %v", v, err)
+	}
+}
+
+func TestMemStorage_UpdateBatch_MixedAndUnknownTypes(t *testing.T) {
+	s := NewMemStorage()
+
+	s.SetGauge("g_keep", 10.0)
+	s.SetCounter("c_keep", 5)
+	s.SetCounter("c_inc", 10)
+
+	gv := 1.5
+	d2 := int64(2)
+	d3 := int64(3)
+
+	in := []models.Metrics{
+		{ID: "g1", MType: models.GaugeType, Value: &gv},
+		{ID: "g_nil", MType: models.GaugeType, Value: nil},
+		{ID: "c1", MType: models.CounterType, Delta: &d2},
+		{ID: "c_nil", MType: models.CounterType, Delta: nil},
+		{ID: "c_inc", MType: models.CounterType, Delta: &d3},
+		{ID: "zzz", MType: models.MetricType("unknown")},
+	}
+
+	if err := s.UpdateBatch(in); err != nil {
+		t.Fatalf("UpdateBatch() want nil error, got %v", err)
+	}
+
+	if got, _ := s.GetGauge("g1"); got != gv {
+		t.Fatalf("GetGauge(g1) = %v, want %v", got, gv)
+	}
+	if got, _ := s.GetGauge("g_keep"); got != 10.0 {
+		t.Fatalf("GetGauge(g_keep) = %v, want %v", got, 10.0)
+	}
+	if got, _ := s.GetCounter("c1"); got != 2 {
+		t.Fatalf("GetCounter(c1) = %d, want %d", got, 2)
+	}
+	if got, _ := s.GetCounter("c_inc"); got != 13 {
+		t.Fatalf("GetCounter(c_inc) = %d, want %d", got, 13)
+	}
+	if got, _ := s.GetCounter("c_keep"); got != 5 {
+		t.Fatalf("GetCounter(c_keep) = %d, want %d", got, 5)
+	}
+}
+
+func TestMemStorage_UpdateBatch_EmptyInput(t *testing.T) {
+	var s MemStorage
+	if err := s.UpdateBatch(nil); err != nil {
+		t.Fatalf("UpdateBatch(nil) want nil, got %v", err)
+	}
+	if err := s.UpdateBatch([]models.Metrics{}); err != nil {
+		t.Fatalf("UpdateBatch(empty) want nil, got %v", err)
 	}
 }

@@ -49,6 +49,10 @@ func (s *PlainSender) Send(metrics []*models.Metrics) {
 
 }
 
+func (s *PlainSender) SendBatch(metrics []*models.Metrics) {
+	s.Send(metrics)
+}
+
 func (s *PlainSender) postMetric(ctx context.Context, m *models.Metrics) {
 	if m == nil {
 		if s.log != nil {

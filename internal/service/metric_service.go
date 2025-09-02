@@ -15,6 +15,7 @@ var (
 
 type MetricServiceInterface interface {
 	ProcessUpdate(*models.Metrics) error
+	ProcessUpdates([]models.Metrics) error
 	ProcessGetValue(name string, metricType models.MetricType) (*models.Metrics, error)
 	SaveFile(path string) error
 	LoadFile(path string) error
@@ -38,6 +39,27 @@ func (s *MetricService) ProcessUpdate(m *models.Metrics) error {
 		s.store.UpdateGauge(m.ID, *m.Value)
 	case models.CounterType:
 		s.store.UpdateCounter(m.ID, *m.Delta)
+	}
+	return nil
+}
+
+type batchUpdater interface {
+	UpdateBatch([]models.Metrics) error
+}
+
+var processUpdateFn = (*MetricService).ProcessUpdate
+
+func (s *MetricService) ProcessUpdates(metrics []models.Metrics) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+	if bu, ok := s.store.(batchUpdater); ok {
+		return bu.UpdateBatch(metrics)
+	}
+	for i := 0; i < len(metrics); i++ {
+		if err := processUpdateFn(s, &metrics[i]); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -28,6 +28,14 @@ func (h *GinHandler) RegisterUpdate(r *gin.Engine) {
 		h.UpdateJSON(c)
 	})
 
+	r.POST("/updates", func(c *gin.Context) {
+		h.UpdatesJSON(c)
+	})
+
+	r.POST("/updates/", func(c *gin.Context) {
+		h.UpdatesJSON(c)
+	})
+
 	r.POST("/update/:type/:name/:value", func(c *gin.Context) {
 		h.UpdatePlain(c)
 	})

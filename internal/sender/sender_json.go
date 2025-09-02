@@ -52,6 +52,46 @@ func (s *JSONSender) Send(metrics []*models.Metrics) {
 	}
 }
 
+func (s *JSONSender) SendBatch(metrics []*models.Metrics) {
+	if len(metrics) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	body, err := s.marshalMetrics(metrics)
+	if err != nil {
+		s.log.WriteError(ErrJSONSenderMarshal.Error(), "error", err)
+		return
+	}
+
+	encoded, err := s.encodeBody(body)
+	if err != nil {
+		s.log.WriteError(ErrJSONSenderEncodeBody.Error(), "error", err)
+		return
+	}
+
+	req, err := s.buildBatchRequest(ctx, encoded)
+	if err != nil {
+		s.log.WriteError(ErrJSONSenderBuildRequest.Error(), "url", s.baseURL+"/updates", "error", err)
+		return
+	}
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		s.log.WriteError("post metric failed", "url", s.baseURL+"/updates", "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if err := s.validateResponse(resp); err != nil {
+		s.log.WriteError(err.Error(), "url", s.baseURL+"/updates")
+		return
+	}
+
+	s.log.WriteInfo("metrics batch sent", "count", len(metrics), "endpoint", s.baseURL+"/updates")
+}
+
 func (s *JSONSender) postMetric(ctx context.Context, m *models.Metrics) {
 	body, err := s.marshalMetric(m)
 	if err != nil {
@@ -138,6 +178,29 @@ func (s *JSONSender) validateResponse(resp *http.Response) error {
 		return fmt.Errorf("%w: %s", ErrJSONSenderUnexpectedStatus, resp.Status)
 	}
 	return nil
+}
+
+func (s *JSONSender) marshalMetrics(m []*models.Metrics) ([]byte, error) {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrJSONSenderMarshal, err)
+	}
+	return b, nil
+}
+
+func (s *JSONSender) buildBatchRequest(ctx context.Context, body []byte) (*http.Request, error) {
+	u := s.baseURL + "/updates"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrJSONSenderBuildRequest, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if s.comp != nil {
+		enc := s.comp.ContentEncoding()
+		req.Header.Set("Content-Encoding", enc)
+		req.Header.Set("Accept-Encoding", enc)
+	}
+	return req, nil
 }
 
 var _ SenderInterface = NewJSONSender("", 0, nil, nil, nil)
