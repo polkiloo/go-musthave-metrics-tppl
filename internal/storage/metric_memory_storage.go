@@ -1,6 +1,10 @@
 package storage
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
+)
 
 type MemStorageT[T comparable] struct {
 	mu   sync.RWMutex
@@ -100,6 +104,26 @@ func (m *MemStorage) AllCounters() map[string]int64 {
 		res[k] = v
 	}
 	return res
+}
+
+func (m *MemStorage) UpdateBatch(metrics []models.Metrics) error {
+	for i := range metrics {
+		mt := &metrics[i]
+
+		if mt.MType == models.GaugeType {
+			if mt.Value != nil {
+				m.UpdateGauge(mt.ID, *mt.Value)
+			}
+			continue
+		}
+		if mt.MType == models.CounterType {
+			if mt.Delta != nil {
+				m.UpdateCounter(mt.ID, *mt.Delta)
+			}
+			continue
+		}
+	}
+	return nil
 }
 
 var _ MetricStorage = NewMemStorage()

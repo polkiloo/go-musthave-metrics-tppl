@@ -6,4 +6,5 @@ import (
 
 type SenderInterface interface {
 	Send(metrics []*models.Metrics)
+	SendBatch(metrics []*models.Metrics)
 }

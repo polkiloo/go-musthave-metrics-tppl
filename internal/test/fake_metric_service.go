@@ -79,3 +79,12 @@ func DoGET(r *gin.Engine, url, accept string) *httptest.ResponseRecorder {
 	r.ServeHTTP(w, req)
 	return w
 }
+
+func (f *FakeMetricService) ProcessUpdates(metrics []models.Metrics) error {
+	for i := range metrics {
+		if err := f.ProcessUpdate(&metrics[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
