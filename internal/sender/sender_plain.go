@@ -85,7 +85,7 @@ func (s *PlainSender) postMetric(ctx context.Context, m *models.Metrics) {
 	}
 	req.Header.Set("Content-Type", "text/plain")
 
-	resp, err := doRequest(ctx, s.client, req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		if s.log != nil {
 			s.log.WriteError(ErrSenderPostMetric.Error())

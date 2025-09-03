@@ -3,15 +3,11 @@ package storage
 import (
 	"context"
 	"errors"
-	"strings"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
-	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
 )
 
 const (
@@ -53,28 +49,20 @@ func NewDBStorage(p db.Pool) *DBStorage {
 }
 
 func (s *DBStorage) UpdateGauge(name string, value float64) {
-	_ = retrier.Do(context.Background(), func() error {
-		_, err := s.pool.Exec(context.Background(), sqlUpdateGauges,
-			name, value,
-		)
-		return err
-	}, isPGConnError)
+	_, _ = s.pool.Exec(context.Background(), sqlUpdateGauges,
+		name, value,
+	)
 }
 
 func (s *DBStorage) UpdateCounter(name string, delta int64) {
-	_ = retrier.Do(context.Background(), func() error {
-		_, err := s.pool.Exec(context.Background(), sqlUpdateCounters,
-			name, delta,
-		)
-		return err
-	}, isPGConnError)
+	_, _ = s.pool.Exec(context.Background(), sqlUpdateCounters,
+		name, delta,
+	)
 }
 
 func (s *DBStorage) GetGauge(name string) (float64, error) {
 	var v float64
-	err := retrier.Do(context.Background(), func() error {
-		return s.pool.QueryRow(context.Background(), `SELECT value FROM gauges WHERE id=$1`, name).Scan(&v)
-	}, isPGConnError)
+	err := s.pool.QueryRow(context.Background(), `SELECT value FROM gauges WHERE id=$1`, name).Scan(&v)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrMetricNotFound
 	}
@@ -83,10 +71,7 @@ func (s *DBStorage) GetGauge(name string) (float64, error) {
 
 func (s *DBStorage) GetCounter(name string) (int64, error) {
 	var v int64
-	err := retrier.Do(context.Background(), func() error {
-		return s.pool.QueryRow(context.Background(), `SELECT value FROM counters WHERE id=$1`, name).Scan(&v)
-	}, isPGConnError)
-
+	err := s.pool.QueryRow(context.Background(), `SELECT value FROM counters WHERE id=$1`, name).Scan(&v)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrMetricNotFound
 	}
@@ -94,31 +79,19 @@ func (s *DBStorage) GetCounter(name string) (int64, error) {
 }
 
 func (s *DBStorage) SetGauge(name string, value float64) {
-	_ = retrier.Do(context.Background(), func() error {
-		_, err := s.pool.Exec(context.Background(), sqlSetGauges,
-			name, value,
-		)
-		return err
-	}, isPGConnError)
+	_, _ = s.pool.Exec(context.Background(), sqlSetGauges,
+		name, value,
+	)
 }
 
 func (s *DBStorage) SetCounter(name string, value int64) {
-	_ = retrier.Do(context.Background(), func() error {
-		_, err := s.pool.Exec(context.Background(), sqlSetCounters,
-			name, value,
-		)
-		return err
-	}, isPGConnError)
+	_, _ = s.pool.Exec(context.Background(), sqlSetCounters,
+		name, value,
+	)
 }
 
 func (s *DBStorage) AllGauges() map[string]float64 {
-	var rows pgx.Rows
-	err := retrier.Do(context.Background(), func() error {
-		var e error
-		rows, e = s.pool.Query(context.Background(), `SELECT id, value FROM gauges`)
-		return e
-	}, isPGConnError)
-
+	rows, err := s.pool.Query(context.Background(), `SELECT id, value FROM gauges`)
 	if err != nil {
 		return map[string]float64{}
 	}
@@ -135,12 +108,7 @@ func (s *DBStorage) AllGauges() map[string]float64 {
 }
 
 func (s *DBStorage) AllCounters() map[string]int64 {
-	var rows pgx.Rows
-	err := retrier.Do(context.Background(), func() error {
-		var e error
-		rows, e = s.pool.Query(context.Background(), `SELECT id, value FROM counters`)
-		return e
-	}, isPGConnError)
+	rows, err := s.pool.Query(context.Background(), `SELECT id, value FROM counters`)
 	if err != nil {
 		return map[string]int64{}
 	}
@@ -167,12 +135,8 @@ func (s *DBStorage) UpdateBatch(metrics []models.Metrics) (err error) {
 	}
 
 	ctx := context.Background()
-	var tx pgx.Tx
-	if err = retrier.Do(ctx, func() error {
-		var e error
-		tx, e = s.pool.Begin(ctx)
-		return e
-	}, isPGConnError); err != nil {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
 		return err
 	}
 	defer s.commitOrRollback(ctx, tx, &err)
@@ -216,20 +180,16 @@ func execUpsertGauges(ctx context.Context, tx pgx.Tx, ids []string, values []flo
 	if len(ids) == 0 {
 		return nil
 	}
-	return retrier.Do(ctx, func() error {
-		_, err := tx.Exec(ctx, sqlUpsertGauges, ids, values)
-		return err
-	}, isPGConnError)
+	_, err := tx.Exec(ctx, sqlUpsertGauges, ids, values)
+	return err
 }
 
 func execUpsertCounters(ctx context.Context, tx pgx.Tx, ids []string, values []int64) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	return retrier.Do(ctx, func() error {
-		_, err := tx.Exec(ctx, sqlUpsertCounters, ids, values)
-		return err
-	}, isPGConnError)
+	_, err := tx.Exec(ctx, sqlUpsertCounters, ids, values)
+	return err
 }
 
 func (s *DBStorage) commitOrRollback(ctx context.Context, tx pgx.Tx, errp *error) {
@@ -237,9 +197,7 @@ func (s *DBStorage) commitOrRollback(ctx context.Context, tx pgx.Tx, errp *error
 		_ = tx.Rollback(ctx)
 		return
 	}
-	*errp = retrier.Do(ctx, func() error {
-		return tx.Commit(ctx)
-	}, isPGConnError)
+	*errp = tx.Commit(ctx)
 }
 
 func mapToSlices[V any](m map[string]V) ([]string, []V) {
@@ -250,14 +208,6 @@ func mapToSlices[V any](m map[string]V) ([]string, []V) {
 		vals = append(vals, v)
 	}
 	return ids, vals
-}
-
-func isPGConnError(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return strings.HasPrefix(pgErr.Code, pgerrcode.ConnectionException[:2])
-	}
-	return false
 }
 
 var _ MetricStorage = NewDBStorage(nil)
