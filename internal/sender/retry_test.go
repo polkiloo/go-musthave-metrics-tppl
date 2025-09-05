@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
 )
 
 type fakeRT struct {
@@ -32,24 +30,21 @@ func (netTempErr) Error() string   { return "temp" }
 func (netTempErr) Timeout() bool   { return true }
 func (netTempErr) Temporary() bool { return true }
 func TestDoRequest_RetriesOnNetError(t *testing.T) {
-	retrier.SetDelays([]time.Duration{time.Millisecond})
-	t.Cleanup(retrier.ResetDelays)
+
 	rt := &fakeRT{errs: []error{netTempErr{}, nil}}
 	c := &http.Client{Transport: rt}
 	req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
-	resp, err := doRequest(context.Background(), c, req)
+	resp, err := doRequest(context.Background(), c, req, []time.Duration{time.Millisecond})
 	if err != nil || resp == nil || rt.calls != 2 {
 		t.Fatalf("expected retry success, calls=2 err=%v resp=%v", err, resp)
 	}
 	resp.Body.Close()
 }
 func TestDoRequest_NoRetryOnContextError(t *testing.T) {
-	retrier.SetDelays([]time.Duration{time.Millisecond})
-	t.Cleanup(retrier.ResetDelays)
 	rt := &fakeRT{errs: []error{context.Canceled}}
 	c := &http.Client{Transport: rt}
 	req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
-	resp, err := doRequest(context.Background(), c, req)
+	resp, err := doRequest(context.Background(), c, req, []time.Duration{time.Millisecond})
 	if resp != nil {
 		resp.Body.Close()
 	}

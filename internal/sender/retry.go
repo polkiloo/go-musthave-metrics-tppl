@@ -5,11 +5,12 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
 )
 
-func doRequest(ctx context.Context, c *http.Client, req *http.Request) (*http.Response, error) {
+func doRequest(ctx context.Context, c *http.Client, req *http.Request, delays []time.Duration) (*http.Response, error) {
 	var resp *http.Response
 	err := retrier.Do(ctx, func() error {
 		if req.GetBody != nil {
@@ -29,7 +30,7 @@ func doRequest(ctx context.Context, c *http.Client, req *http.Request) (*http.Re
 		}
 		resp = r
 		return nil
-	}, isNetError)
+	}, isNetError, delays)
 	return resp, err
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
 )
 
 var (
@@ -77,7 +78,7 @@ func (s *JSONSender) SendBatch(metrics []*models.Metrics) {
 		return
 	}
 
-	resp, err := doRequest(ctx, s.client, req)
+	resp, err := doRequest(ctx, s.client, req, retrier.DefaultDelays)
 	if err != nil {
 		s.log.WriteError("post metric failed", "url", s.baseURL+"/updates", "error", err)
 		return
@@ -111,7 +112,7 @@ func (s *JSONSender) postMetric(ctx context.Context, m *models.Metrics) {
 		return
 	}
 
-	resp, err := doRequest(ctx, s.client, req)
+	resp, err := doRequest(ctx, s.client, req, retrier.DefaultDelays)
 	if err != nil {
 		s.log.WriteError("post metric failed", "url", s.baseURL+"/update", "id", m.ID, "type", m.MType, "error", err)
 		return

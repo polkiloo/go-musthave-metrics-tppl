@@ -10,6 +10,7 @@ import (
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
 )
 
 var (
@@ -85,7 +86,7 @@ func (s *PlainSender) postMetric(ctx context.Context, m *models.Metrics) {
 	}
 	req.Header.Set("Content-Type", "text/plain")
 
-	resp, err := doRequest(ctx, s.client, req)
+	resp, err := doRequest(ctx, s.client, req, retrier.DefaultDelays)
 	if err != nil {
 		if s.log != nil {
 			s.log.WriteError(ErrSenderPostMetric.Error())
