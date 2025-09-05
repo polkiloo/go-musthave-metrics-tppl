@@ -3,6 +3,7 @@ package sender
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -34,10 +35,25 @@ func doRequest(ctx context.Context, c *http.Client, req *http.Request, delays []
 	return resp, err
 }
 
+type statusError struct {
+	code int
+}
+
+func (e statusError) Error() string {
+	return fmt.Sprintf("unexpected status code: %d", e.code)
+}
+
 func isNetError(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return false
 	}
 	var ne net.Error
-	return errors.As(err, &ne)
+	if errors.As(err, &ne) {
+		return true
+	}
+	var se statusError
+	if errors.As(err, &se) {
+		return se.code >= 500 && se.code <= 599
+	}
+	return false
 }

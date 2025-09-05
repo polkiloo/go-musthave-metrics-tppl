@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
@@ -255,7 +254,16 @@ func mapToSlices[V any](m map[string]V) ([]string, []V) {
 func isPGConnError(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		return strings.HasPrefix(pgErr.Code, pgerrcode.ConnectionException[:2])
+		switch pgErr.Code {
+		case pgerrcode.ConnectionException,
+			pgerrcode.ConnectionDoesNotExist,
+			pgerrcode.ConnectionFailure,
+			pgerrcode.SQLClientUnableToEstablishSQLConnection,
+			pgerrcode.SQLServerRejectedEstablishmentOfSQLConnection,
+			pgerrcode.TransactionResolutionUnknown,
+			pgerrcode.ProtocolViolation:
+			return true
+		}
 	}
 	return false
 }

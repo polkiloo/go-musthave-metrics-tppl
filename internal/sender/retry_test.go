@@ -24,6 +24,17 @@ func (f *fakeRT) RoundTrip(*http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("ok"))}, nil
 }
 
+type fakeRTStatus struct {
+	codes []int
+	calls int
+}
+
+func (f *fakeRTStatus) RoundTrip(*http.Request) (*http.Response, error) {
+	code := f.codes[f.calls]
+	f.calls++
+	return &http.Response{StatusCode: code, Body: io.NopCloser(strings.NewReader(""))}, nil
+}
+
 type netTempErr struct{}
 
 func (netTempErr) Error() string   { return "temp" }
@@ -61,5 +72,11 @@ func TestIsNetError(t *testing.T) {
 	}
 	if isNetError(context.DeadlineExceeded) {
 		t.Fatalf("deadline exceeded considered net error")
+	}
+	if !isNetError(statusError{code: http.StatusInternalServerError}) {
+		t.Fatalf("5xx status not considered net error")
+	}
+	if isNetError(statusError{code: http.StatusBadRequest}) {
+		t.Fatalf("4xx status considered net error")
 	}
 }
