@@ -13,6 +13,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
 )
 
 var (
@@ -52,83 +53,45 @@ func (s *JSONSender) Send(metrics []*models.Metrics) {
 	}
 }
 
-// func (s *JSONSender) postMetric(ctx context.Context, m *models.Metrics) {
-// 	body, err := json.Marshal(m)
-// 	if err != nil {
-// 		if s.log != nil {
-// 			s.log.WriteError("marshal metric failed", "id", m.ID, "type", m.MType, "error", err)
-// 		}
-// 		return
-// 	}
+func (s *JSONSender) SendBatch(metrics []*models.Metrics) {
+	if len(metrics) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-// 	var buf bytes.Buffer
-// 	if s.comp != nil {
-// 		zw, err := s.comp.NewWriter(&buf)
-// 		if err != nil {
-// 			if s.log != nil {
-// 				s.log.WriteError("encode body failed", "id", m.ID, "type", m.MType, "error", err)
-// 			}
-// 			return
-// 		}
-// 		if _, err := zw.Write(body); err != nil {
-// 			if s.log != nil {
-// 				s.log.WriteError("encode body failed", "id", m.ID, "type", m.MType, "error", err)
-// 			}
-// 			zw.Close()
-// 			return
-// 		}
-// 		if err := zw.Close(); err != nil {
-// 			if s.log != nil {
-// 				s.log.WriteError("encode body failed", "id", m.ID, "type", m.MType, "error", err)
-// 			}
-// 			return
-// 		}
-// 	} else {
-// 		buf.Write(body)
-// 	}
+	body, err := s.marshalMetrics(metrics)
+	if err != nil {
+		s.log.WriteError(ErrJSONSenderMarshal.Error(), "error", err)
+		return
+	}
 
-// 	reader := bytes.NewReader(buf.Bytes())
+	encoded, err := s.encodeBody(body)
+	if err != nil {
+		s.log.WriteError(ErrJSONSenderEncodeBody.Error(), "error", err)
+		return
+	}
 
-// 	u := s.baseURL + "/update"
-// 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, reader)
-// 	if err != nil {
-// 		if s.log != nil {
-// 			s.log.WriteError("build request failed", "url", u, "error", err)
-// 		}
-// 		return
-// 	}
-// 	req.Header.Set("Content-Type", "application/json")
-// 	if s.comp != nil {
-// 		enc := s.comp.ContentEncoding()
-// 		req.Header.Set("Content-Encoding", enc)
-// 		req.Header.Set("Accept-Encoding", enc)
-// 	}
+	req, err := s.buildBatchRequest(ctx, encoded)
+	if err != nil {
+		s.log.WriteError(ErrJSONSenderBuildRequest.Error(), "url", s.baseURL+"/updates", "error", err)
+		return
+	}
 
-// 	resp, err := s.client.Do(req)
-// 	if err != nil {
-// 		if s.log != nil {
-// 			s.log.WriteError("post metric failed", "url", u, "id", m.ID, "type", m.MType, "error", err)
-// 		}
-// 		return
-// 	}
-// 	defer resp.Body.Close()
+	resp, err := doRequest(ctx, s.client, req, retrier.DefaultDelays)
+	if err != nil {
+		s.log.WriteError("post metric failed", "url", s.baseURL+"/updates", "error", err)
+		return
+	}
+	defer resp.Body.Close()
 
-// 	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
-// 		if s.log != nil {
-// 			s.log.WriteError("unexpected content-type", "url", u, "got", ct)
-// 		}
-// 	}
-// 	if resp.StatusCode != http.StatusOK {
-// 		if s.log != nil {
-// 			s.log.WriteError("unexpected status", "url", u, "status", resp.Status)
-// 		}
-// 		return
-// 	}
+	if err := s.validateResponse(resp); err != nil {
+		s.log.WriteError(err.Error(), "url", s.baseURL+"/updates")
+		return
+	}
 
-// 	if s.log != nil {
-// 		s.log.WriteInfo("metric sent", "id", m.ID, "type", m.MType, "endpoint", u)
-// 	}
-// }
+	s.log.WriteInfo("metrics batch sent", "count", len(metrics), "endpoint", s.baseURL+"/updates")
+}
 
 func (s *JSONSender) postMetric(ctx context.Context, m *models.Metrics) {
 	body, err := s.marshalMetric(m)
@@ -149,7 +112,7 @@ func (s *JSONSender) postMetric(ctx context.Context, m *models.Metrics) {
 		return
 	}
 
-	resp, err := s.client.Do(req)
+	resp, err := doRequest(ctx, s.client, req, retrier.DefaultDelays)
 	if err != nil {
 		s.log.WriteError("post metric failed", "url", s.baseURL+"/update", "id", m.ID, "type", m.MType, "error", err)
 		return
@@ -216,6 +179,29 @@ func (s *JSONSender) validateResponse(resp *http.Response) error {
 		return fmt.Errorf("%w: %s", ErrJSONSenderUnexpectedStatus, resp.Status)
 	}
 	return nil
+}
+
+func (s *JSONSender) marshalMetrics(m []*models.Metrics) ([]byte, error) {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrJSONSenderMarshal, err)
+	}
+	return b, nil
+}
+
+func (s *JSONSender) buildBatchRequest(ctx context.Context, body []byte) (*http.Request, error) {
+	u := s.baseURL + "/updates"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrJSONSenderBuildRequest, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if s.comp != nil {
+		enc := s.comp.ContentEncoding()
+		req.Header.Set("Content-Encoding", enc)
+		req.Header.Set("Accept-Encoding", enc)
+	}
+	return req, nil
 }
 
 var _ SenderInterface = NewJSONSender("", 0, nil, nil, nil)
