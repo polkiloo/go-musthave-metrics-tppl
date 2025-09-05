@@ -15,10 +15,12 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-func TestNewDB_NilConfig(t *testing.T) {
-	lc := fxtest.NewLifecycle(t)
-
-	db, err := newDB(context.TODO(), lc, nil)
+func TestNewPool_NilConfig(t *testing.T) {
+	m, err := runMigrations(context.TODO(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	db, err := newPool(context.TODO(), m, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -27,10 +29,12 @@ func TestNewDB_NilConfig(t *testing.T) {
 	}
 }
 
-func TestNewDB_EmptyDSN(t *testing.T) {
-	lc := fxtest.NewLifecycle(t)
-
-	db, err := newDB(context.TODO(), lc, &Config{DSN: ""})
+func TestNewPool_EmptyDSN(t *testing.T) {
+	m, err := runMigrations(context.TODO(), &Config{DSN: ""})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	db, err := newPool(context.TODO(), m, &Config{DSN: ""})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -39,7 +43,7 @@ func TestNewDB_EmptyDSN(t *testing.T) {
 	}
 }
 
-func TestNewDB_OpenAndClose(t *testing.T) {
+func TestNewPool_OpenAndClose(t *testing.T) {
 	lc := fxtest.NewLifecycle(t)
 	cfg := &Config{DSN: "postgres://user@localhost/db"}
 
@@ -56,7 +60,11 @@ func TestNewDB_OpenAndClose(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	db, err := newDB(ctx, lc, cfg)
+	m, err := runMigrations(ctx, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	db, err := newPool(ctx, m, cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -65,6 +73,7 @@ func TestNewDB_OpenAndClose(t *testing.T) {
 	}
 
 	mockPool.ExpectClose()
+	closePool(lc, db)
 
 	if err := lc.Start(ctx); err != nil {
 		t.Fatalf("lc.Start: %v", err)

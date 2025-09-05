@@ -51,30 +51,36 @@ var migrate = func(ctx context.Context, dsn string) error {
 	return goose.UpContext(ctx, db, ".")
 }
 
-func newDB(ctx context.Context, lc fx.Lifecycle, cfg *Config) (Pool, error) {
+type migrated struct{}
+
+func runMigrations(ctx context.Context, cfg *Config) (migrated, error) {
+	if cfg == nil || cfg.DSN == "" {
+		return migrated{}, nil
+	}
+	return migrated{}, migrate(ctx, cfg.DSN)
+}
+
+func newPool(ctx context.Context, _ migrated, cfg *Config) (Pool, error) {
 	if cfg == nil || cfg.DSN == "" {
 		return nil, nil
 	}
+	return open(ctx, cfg.DSN)
+}
 
-	if err := migrate(ctx, cfg.DSN); err != nil {
-		return nil, err
+func closePool(lc fx.Lifecycle, pool Pool) {
+	if pool == nil {
+		return
 	}
-
-	pool, err := open(ctx, cfg.DSN)
-	if err != nil {
-		return nil, err
-	}
-
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			pool.Close()
 			return nil
 		},
 	})
-	return pool, nil
 }
 
 var Module = fx.Module(
 	"db",
-	fx.Provide(newDB),
+	fx.Provide(runMigrations, newPool),
+	fx.Invoke(closePool),
 )
