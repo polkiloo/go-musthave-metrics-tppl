@@ -6,8 +6,8 @@ import (
 	"go.uber.org/fx"
 )
 
-func provideStorage(pool db.Pool) storage.MetricStorage {
-	if pool != nil {
+func provideStorage(cfg *db.Config, pool db.Pool) storage.MetricStorage {
+	if cfg != nil && cfg.DSN != "" && pool != nil {
 		return storage.NewDBStorage(pool)
 	}
 	return storage.NewMemStorage()
