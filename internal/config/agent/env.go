@@ -11,6 +11,7 @@ const (
 	EnvAddressVarName        = "ADDRESS"
 	EnvReportIntervalVarName = "REPORT_INTERVAL"
 	EnvPollIntervalVarName   = "POLL_INTERVAL"
+	EnvKeyVarName            = "KEY"
 )
 
 type AgentEnvVars struct {
@@ -18,6 +19,7 @@ type AgentEnvVars struct {
 	Port              *int
 	ReportIntervalSec *int
 	PollIntervalSec   *int
+	SignKey           string
 }
 
 func getEnvVars() (AgentEnvVars, error) {
@@ -38,5 +40,6 @@ func getEnvVars() (AgentEnvVars, error) {
 			e.PollIntervalSec = &n
 		}
 	}
+	e.SignKey = os.Getenv(EnvKeyVarName)
 	return e, nil
 }

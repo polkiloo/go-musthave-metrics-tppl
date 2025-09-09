@@ -14,6 +14,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/storage"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 	"go.uber.org/fx"
@@ -182,8 +183,10 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 		H    *GinHandler
 		L    logger.Logger
 		C    compression.Compressor
+		S    sign.Signer
+		K    sign.SignKey
 		Pool db.Pool `optional:"true"`
-	}{R: r, H: h, L: l, C: c})
+	}{R: r, H: h, L: l, C: c, S: sign.NewSignerSHA256(), K: ""})
 
 	if len(r.Handlers) == 0 {
 		t.Fatalf("expected global middleware to be added")

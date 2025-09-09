@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
 )
 
@@ -43,6 +44,12 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		cfg.PollInterval = time.Duration(*envVars.PollIntervalSec) * time.Second
 	} else if flagArgs.PollIntervalSec != nil {
 		cfg.PollInterval = time.Duration(*flagArgs.PollIntervalSec) * time.Second
+	}
+
+	if envVars.SignKey != "" {
+		cfg.SignKey = sign.SignKey(envVars.SignKey)
+	} else if flagArgs.SignKey != "" {
+		cfg.SignKey = sign.SignKey(flagArgs.SignKey)
 	}
 
 	return cfg, nil

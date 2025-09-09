@@ -13,6 +13,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
 )
 
@@ -30,6 +31,7 @@ func main() {
 		handler.Module,
 		server.Module,
 		compression.Module,
+		sign.Module,
 	)
 
 	run(ctx, app)

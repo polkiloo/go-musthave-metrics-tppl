@@ -189,3 +189,15 @@ func TestGetEnvVars_Combined_AllSources(t *testing.T) {
 		}
 	})
 }
+
+func TestGetEnvVars_Key(t *testing.T) {
+	withEnvMap(map[string]string{EnvKeyVarName: "secret"}, func() {
+		got, err := getEnvVars()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.SignKey != "secret" {
+			t.Fatalf("key mismatch: %q", got.SignKey)
+		}
+	})
+}

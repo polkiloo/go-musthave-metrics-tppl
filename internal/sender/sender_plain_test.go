@@ -39,7 +39,7 @@ func TestSender_Send_AllTypes(t *testing.T) {
 	defer ts.Close()
 
 	fl := &test.FakeLogger{}
-	s := NewPlainSender(ts.URL, 0, ts.Client(), fl)
+	s := NewPlainSender(ts.URL, 0, ts.Client(), fl, "")
 
 	var c int64 = 2
 	mc, _ := models.NewCounterMetrics(models.CounterNames[0], &c)
@@ -54,7 +54,7 @@ func TestSender_Send_AllTypes(t *testing.T) {
 
 func TestSender_Send_CreateRequestError(t *testing.T) {
 	fl := &test.FakeLogger{}
-	s := NewPlainSender("://bad_url", 8080, nil, fl)
+	s := NewPlainSender("://bad_url", 8080, nil, fl, "")
 
 	gv := 1.23
 	mg, _ := models.NewGaugeMetrics(models.GaugeNames[0], &gv)
@@ -65,7 +65,7 @@ func TestSender_Send_CreateRequestError(t *testing.T) {
 func TestSender_Send_HTTPError(t *testing.T) {
 	port := getUnusedPort()
 	fl := &test.FakeLogger{}
-	s := NewPlainSender("http://127.0.0.1", port, nil, fl)
+	s := NewPlainSender("http://127.0.0.1", port, nil, fl, "")
 
 	gv := 1.23
 	mg, _ := models.NewGaugeMetrics(models.GaugeNames[0], &gv)
@@ -80,7 +80,7 @@ func TestSender_Send_NonOKResponse(t *testing.T) {
 	defer ts.Close()
 	host, port := parseHostPort(ts.URL)
 	fl := &test.FakeLogger{}
-	s := NewPlainSender(host, port, nil, fl)
+	s := NewPlainSender(host, port, nil, fl, "")
 
 	gv := 1.23
 	mg, _ := models.NewGaugeMetrics(models.GaugeNames[0], &gv)
@@ -89,7 +89,7 @@ func TestSender_Send_NonOKResponse(t *testing.T) {
 
 func TestSender_Send_EmptyMaps(t *testing.T) {
 	fl := &test.FakeLogger{}
-	s := NewPlainSender("http://localhost", 8080, nil, fl)
+	s := NewPlainSender("http://localhost", 8080, nil, fl, "")
 	s.Send(nil)
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 )
 
 var (
@@ -27,9 +28,10 @@ type PlainSender struct {
 	port    int
 	client  *http.Client
 	log     logger.Logger
+	signKey sign.SignKey
 }
 
-func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logger) *PlainSender {
+func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logger, k sign.SignKey) *PlainSender {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
@@ -37,6 +39,7 @@ func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logg
 		baseURL: fmt.Sprintf("http://%s:%d", baseURL, port),
 		client:  client,
 		log:     l,
+		signKey: k,
 	}
 }
 
@@ -85,6 +88,9 @@ func (s *PlainSender) postMetric(ctx context.Context, m *models.Metrics) {
 		return
 	}
 	req.Header.Set("Content-Type", "text/plain")
+	if s.signKey != "" {
+		req.Header.Set("HashSHA256", sign.NewSignerSHA256().Sign(nil, s.signKey))
+	}
 
 	resp, err := doRequest(ctx, s.client, req, retrier.DefaultDelays)
 	if err != nil {
@@ -124,4 +130,4 @@ func plainValue(m *models.Metrics) (string, bool) {
 	}
 }
 
-var _ SenderInterface = NewPlainSender("", 0, nil, nil)
+var _ SenderInterface = NewPlainSender("", 0, nil, nil, "")

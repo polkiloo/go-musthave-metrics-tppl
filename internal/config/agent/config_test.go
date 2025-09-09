@@ -163,3 +163,17 @@ func TestAgentConfigModule_ValidateApp(t *testing.T) {
 		t.Fatalf("fx.ValidateApp(Module) failed: %v", err)
 	}
 }
+
+func TestBuildAgentConfig_KeyPriority(t *testing.T) {
+	withEnvMap(map[string]string{EnvKeyVarName: "envkey"}, func() {
+		withArgs([]string{"-k", "flagkey"}, func() {
+			got, err := buildAgentConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.SignKey != "envkey" {
+				t.Fatalf("env key must win: got %q", got.SignKey)
+			}
+		})
+	})
+}
