@@ -10,10 +10,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/storage"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
+	"go.uber.org/fx"
 )
 
 func TestRegisterUpdate_JSONRoute_ContentTypeCheck(t *testing.T) {
@@ -146,7 +149,7 @@ func TestRegisterRoutes_RegistersOnce_NoPanic(t *testing.T) {
 
 	before := len(r.Routes())
 
-	RegisterRoutes(r, h)
+	RegisterRoutes(r, h, nil)
 
 	after := len(r.Routes())
 	if after <= before {
@@ -173,7 +176,14 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 
 	var c compression.Compressor = test.NewFakeCompressor("")
 
-	register(r, h, l, c)
+	register(struct {
+		fx.In
+		R    *gin.Engine
+		H    *GinHandler
+		L    logger.Logger
+		C    compression.Compressor
+		Pool db.Pool `optional:"true"`
+	}{R: r, H: h, L: l, C: c})
 
 	if len(r.Handlers) == 0 {
 		t.Fatalf("expected global middleware to be added")
@@ -189,7 +199,7 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 }
 
 func TestNewGinHandler_ServiceConcreteTypeIsMetricService(t *testing.T) {
-	h := NewGinHandler(service.NewMetricService())
+	h := NewGinHandler(service.NewMetricService(storage.NewMemStorage()))
 
 	got := reflect.TypeOf(h.service).String()
 	want := "*service.MetricService"

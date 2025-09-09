@@ -1,15 +1,19 @@
 package service
 
 import (
+	"errors"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/storage"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 )
 
 func TestProcessUpdate_Gauge(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	m := &models.Metrics{ID: "g1", MType: models.GaugeType, Value: Float64Ptr(3.14)}
 	err := svc.ProcessUpdate(m)
 	if err != nil {
@@ -18,7 +22,7 @@ func TestProcessUpdate_Gauge(t *testing.T) {
 }
 
 func TestProcessUpdate_Counter(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 
 	m := &models.Metrics{ID: "c1", MType: models.CounterType, Delta: Int64Ptr(10)}
 	err := svc.ProcessUpdate(m)
@@ -34,7 +38,7 @@ func TestProcessUpdate_Counter(t *testing.T) {
 }
 
 func TestProcessUpdate_Concurrent(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	var wg sync.WaitGroup
 
 	n := 1000
@@ -68,7 +72,7 @@ func TestProcessUpdate_Concurrent(t *testing.T) {
 }
 
 func TestProcessGet_Gauge(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	f := float64(2.71)
 	m, _ := models.NewGaugeMetrics(models.GaugeNames[0], &f)
 	_ = svc.ProcessUpdate(m)
@@ -83,7 +87,7 @@ func TestProcessGet_Gauge(t *testing.T) {
 }
 
 func TestProcessGet_Counter(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	j := int64(42)
 	m, _ := models.NewCounterMetrics(models.CounterNames[0], &j)
 	_ = svc.ProcessUpdate(m)
@@ -98,7 +102,7 @@ func TestProcessGet_Counter(t *testing.T) {
 }
 
 func TestProcessGet_NotFound(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	_, err := svc.ProcessGetValue("not_exist", models.GaugeType)
 	if err == nil {
 		t.Errorf("expected error for missing gauge, got nil")
@@ -106,7 +110,7 @@ func TestProcessGet_NotFound(t *testing.T) {
 }
 
 func TestMetricService_SaveLoadFile(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	f := float64(1.23)
 	g, _ := models.NewGaugeMetrics("g", &f)
 	_ = svc.ProcessUpdate(g)
@@ -119,7 +123,7 @@ func TestMetricService_SaveLoadFile(t *testing.T) {
 		t.Fatalf("SaveFile error: %v", err)
 	}
 
-	svc2 := NewMetricService()
+	svc2 := NewMetricService(storage.NewMemStorage())
 	if err := svc2.LoadFile(tmp); err != nil {
 		t.Fatalf("LoadFile error: %v", err)
 	}
@@ -134,12 +138,100 @@ func TestMetricService_SaveLoadFile(t *testing.T) {
 }
 
 func TestMetricService_SaveLoadFile_EmptyPath(t *testing.T) {
-	svc := NewMetricService()
+	svc := NewMetricService(storage.NewMemStorage())
 	if err := svc.SaveFile(""); err != nil {
 		t.Fatalf("SaveFile empty path: %v", err)
 	}
 	if err := svc.LoadFile(""); err != nil {
 		t.Fatalf("LoadFile empty path: %v", err)
+	}
+}
+
+func TestProcessUpdates_EmptySlice(t *testing.T) {
+	s := &MetricService{store: test.NewFakeStorage()}
+	if err := s.ProcessUpdates(nil); err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if err := s.ProcessUpdates([]models.Metrics{}); err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+}
+
+func TestProcessUpdates_Batch_Success(t *testing.T) {
+	base := test.NewFakeStorage()
+	fb := &test.FakeBatchStore{FakeStorage: base}
+	s := &MetricService{store: fb}
+
+	in := []models.Metrics{{ID: "a"}, {ID: "b"}, {ID: "c"}}
+	if err := s.ProcessUpdates(in); err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if !reflect.DeepEqual(fb.Got, in) {
+		t.Fatalf("batch got != in: %#v != %#v", fb.Got, in)
+	}
+}
+
+func TestProcessUpdates_Batch_Error(t *testing.T) {
+	base := test.NewFakeStorage()
+	wantErr := errors.New("boom")
+	fb := &test.FakeBatchStore{FakeStorage: base, Err: wantErr}
+	s := &MetricService{store: fb}
+
+	in := []models.Metrics{{ID: "x"}}
+	err := s.ProcessUpdates(in)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("want %v, got %v", wantErr, err)
+	}
+}
+
+func TestProcessUpdates_Fallback_Success(t *testing.T) {
+	old := processUpdateFn
+	t.Cleanup(func() { processUpdateFn = old })
+
+	var called []string
+	processUpdateFn = func(_ *MetricService, m *models.Metrics) error {
+		called = append(called, m.ID)
+		return nil
+	}
+
+	s := &MetricService{store: &test.FakeNoBatchStore{FakeStorage: test.NewFakeStorage()}}
+	in := []models.Metrics{{ID: "1"}, {ID: "2"}, {ID: "3"}}
+
+	if err := s.ProcessUpdates(in); err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	want := []string{"1", "2", "3"}
+	if !reflect.DeepEqual(called, want) {
+		t.Fatalf("update order mismatch: got %v, want %v", called, want)
+	}
+}
+
+func TestProcessUpdates_Fallback_StopsOnFirstError(t *testing.T) {
+	old := processUpdateFn
+	t.Cleanup(func() { processUpdateFn = old })
+
+	failAt := 1
+	var calls int
+	wantErr := errors.New("fail")
+
+	processUpdateFn = func(_ *MetricService, _ *models.Metrics) error {
+		if calls == failAt {
+			calls++
+			return wantErr
+		}
+		calls++
+		return nil
+	}
+
+	s := &MetricService{store: &test.FakeNoBatchStore{FakeStorage: test.NewFakeStorage()}}
+	in := []models.Metrics{{ID: "a"}, {ID: "b"}, {ID: "c"}}
+
+	err := s.ProcessUpdates(in)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("want %v, got %v", wantErr, err)
+	}
+	if calls != failAt+1 {
+		t.Fatalf("should stop after first error: calls=%d, want=%d", calls, failAt+1)
 	}
 }
 

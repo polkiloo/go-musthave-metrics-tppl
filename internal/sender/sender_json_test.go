@@ -537,6 +537,65 @@ func hostPortFromServer(tb testing.TB, ts *httptest.Server) (string, int) {
 	return host, p
 }
 
+func TestJSONSender_SendBatch_SendsAll(t *testing.T) {
+	var gotCount int
+	var gotBody []byte
+	var gotCT string
+	var gotPath string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotCount++
+		gotCT = r.Header.Get("Content-Type")
+		gotPath = r.URL.Path
+		defer r.Body.Close()
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			zr, _ := gzip.NewReader(r.Body)
+			gotBody, _ = io.ReadAll(zr)
+			zr.Close()
+		} else {
+			gotBody, _ = io.ReadAll(r.Body)
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer ts.Close()
+
+	host, port := hostPortFromServer(t, ts)
+	log := &test.FakeLogger{}
+	comp := compression.NewGzip(compression.BestSpeed)
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp)
+
+	c := int64(5)
+	g := 1.23
+	mCounter := &models.Metrics{ID: "PollCount", MType: models.CounterType, Delta: &c}
+	mGauge := &models.Metrics{ID: "Alloc", MType: models.GaugeType, Value: &g}
+
+	s.SendBatch([]*models.Metrics{mCounter, mGauge})
+
+	if gotCount != 1 {
+		t.Fatalf("expected 1 request, got %d", gotCount)
+	}
+	if gotPath != "/updates" {
+		t.Fatalf("expected path /updates, got %q", gotPath)
+	}
+	if !strings.HasPrefix(gotCT, "application/json") {
+		t.Fatalf("content-type: want application/json, got %q", gotCT)
+	}
+
+	var ms []models.Metrics
+	if err := json.Unmarshal(gotBody, &ms); err != nil {
+		t.Fatalf("invalid json body: %v", err)
+	}
+	if len(ms) != 2 {
+		t.Fatalf("want 2 metrics, got %d", len(ms))
+	}
+	if last := log.GetLastInfoMessage(); !strings.HasPrefix(last, "metrics batch sent") {
+		t.Errorf("expected an info 'metrics batch sent', got %q", last)
+	}
+}
+
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

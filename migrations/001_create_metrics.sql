@@ -1,0 +1,16 @@
+-- +goose Up
+CREATE TABLE IF NOT EXISTS gauges (
+    id TEXT PRIMARY KEY,
+    value DOUBLE PRECISION NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS counters (
+    id TEXT PRIMARY KEY,
+    value BIGINT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS counters;
+DROP TABLE IF EXISTS gauges;
