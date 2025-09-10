@@ -3,7 +3,6 @@ module github.com/polkiloo/go-musthave-metrics-tppl
 go 1.24.5
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/gin-gonic/gin v1.10.1
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.7.5

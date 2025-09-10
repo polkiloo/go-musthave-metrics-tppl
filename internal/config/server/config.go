@@ -2,6 +2,7 @@ package servercfg
 
 import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
 )
 
@@ -49,6 +50,12 @@ func buildServerConfig() (server.AppConfig, error) {
 		cfg.Restore = *flagArgs.restore
 	}
 
+	if envVars.SignKey != "" {
+		cfg.SignKey = sign.SignKey(envVars.SignKey)
+	} else if flagArgs.SignKey != "" {
+		cfg.SignKey = sign.SignKey(flagArgs.SignKey)
+	}
+
 	return cfg, nil
 }
 
@@ -57,5 +64,6 @@ var Module = fx.Module(
 	fx.Provide(
 		buildServerConfig,
 		func(c server.AppConfig) *server.AppConfig { return &c },
+		func(c server.AppConfig) sign.SignKey { return sign.SignKey(c.SignKey) },
 	),
 )
