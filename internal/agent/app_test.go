@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,8 +40,8 @@ func TestRunAgent_RegistersHooksAndStartsLoop_WithChan(t *testing.T) {
 		t.Fatal("Send was not called in time")
 	}
 
-	assert.GreaterOrEqual(t, collector.Collected, int32(1))
-	assert.GreaterOrEqual(t, s.Sends, 1)
+	assert.GreaterOrEqual(t, atomic.LoadInt32(&collector.Collected), int32(1))
+	assert.GreaterOrEqual(t, atomic.LoadInt32(&s.Sends), int32(1))
 	assert.NoError(t, lc.hooks[0].OnStop(context.Background()))
 }
 

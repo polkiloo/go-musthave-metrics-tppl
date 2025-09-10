@@ -27,7 +27,7 @@ func TestAgentLoopSleep_Basic(t *testing.T) {
 
 	agent.AgentLoopSleep(ctx, c, []sender.SenderInterface{s}, cfg)
 
-	assert.GreaterOrEqual(t, c.Collected, int32(10))
+	assert.GreaterOrEqual(t, atomic.LoadInt32(&c.Collected), int32(10))
 	assert.Greater(t, atomic.LoadInt32(&s.Sends), int32(0))
 }
 
