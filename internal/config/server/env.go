@@ -12,6 +12,7 @@ const (
 	EnvStoreIntervalVarName = "STORE_INTERVAL"
 	EnvFileStorageVarName   = "FILE_STORAGE_PATH"
 	EnvRestoreVarName       = "RESTORE"
+	EnvKeyVarName           = "KEY"
 )
 
 type ServerEnvVars struct {
@@ -20,6 +21,7 @@ type ServerEnvVars struct {
 	StoreInterval *int
 	FileStorage   string
 	Restore       *bool
+	SignKey       string
 }
 
 func getEnvVars() (ServerEnvVars, error) {
@@ -41,5 +43,7 @@ func getEnvVars() (ServerEnvVars, error) {
 
 	filePath := os.Getenv(EnvFileStorageVarName)
 
-	return ServerEnvVars{Host: hp.Host, Port: hp.Port, StoreInterval: interval, FileStorage: filePath, Restore: restore}, nil
+	key := os.Getenv(EnvKeyVarName)
+
+	return ServerEnvVars{Host: hp.Host, Port: hp.Port, StoreInterval: interval, FileStorage: filePath, Restore: restore, SignKey: key}, nil
 }

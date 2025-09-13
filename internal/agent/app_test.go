@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ func TestRunAgent_RegistersHooksAndStartsLoop_WithChan(t *testing.T) {
 		PollInterval:   1 * time.Millisecond,
 		ReportInterval: 2 * time.Millisecond,
 		Iterations:     5,
+		RateLimit:      1,
 	}
 
 	lc := &fakeLifecycle{}
@@ -39,8 +41,8 @@ func TestRunAgent_RegistersHooksAndStartsLoop_WithChan(t *testing.T) {
 		t.Fatal("Send was not called in time")
 	}
 
-	assert.GreaterOrEqual(t, collector.Collected, int32(1))
-	assert.GreaterOrEqual(t, s.Sends, 1)
+	assert.GreaterOrEqual(t, atomic.LoadInt32(&collector.Collected), int32(1))
+	assert.GreaterOrEqual(t, atomic.LoadInt32(&s.Sends), int32(1))
 	assert.NoError(t, lc.hooks[0].OnStop(context.Background()))
 }
 
@@ -69,6 +71,7 @@ func TestProvideAgentLoopConfig_CopiesFields(t *testing.T) {
 		PollInterval:   2 * time.Second,
 		ReportInterval: 5 * time.Second,
 		LoopIterations: 10,
+		RateLimit:      3,
 	}
 
 	got := ProvideAgentLoopConfig(want)
@@ -81,6 +84,9 @@ func TestProvideAgentLoopConfig_CopiesFields(t *testing.T) {
 	}
 	if got.Iterations != want.LoopIterations {
 		t.Errorf("Iterations: want %d, got %d", want.LoopIterations, got.Iterations)
+	}
+	if got.RateLimit != want.RateLimit {
+		t.Errorf("RateLimit: want %d, got %d", want.RateLimit, got.RateLimit)
 	}
 }
 
@@ -104,6 +110,7 @@ func TestRunAgent_AppContextCancellationStopsLoop(t *testing.T) {
 		PollInterval:   1 * time.Millisecond,
 		ReportInterval: 2 * time.Millisecond,
 		Iterations:     0,
+		RateLimit:      1,
 	}
 
 	appCtx, appCancel := context.WithCancel(context.Background())

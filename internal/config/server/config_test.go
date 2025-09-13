@@ -98,3 +98,17 @@ func TestModule_AdapterValueToPointer_Executes(t *testing.T) {
 		})
 	})
 }
+
+func TestBuildServerConfig_KeyPriority(t *testing.T) {
+	withEnv(EnvKeyVarName, "envkey", func() {
+		withArgs([]string{"-k", "flagkey"}, func() {
+			cfg, err := buildServerConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if cfg.SignKey != "envkey" {
+				t.Fatalf("env key must win: got %q", cfg.SignKey)
+			}
+		})
+	})
+}

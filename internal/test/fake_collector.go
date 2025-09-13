@@ -62,3 +62,5 @@ func (m *FakeCollector) Snapshot() (metrics []*models.Metrics) {
 	}
 	return
 }
+
+func (m *FakeCollector) SetGauge(name string, value float64) {}

@@ -14,6 +14,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 )
 
 var (
@@ -30,9 +31,10 @@ type JSONSender struct {
 	client  *http.Client
 	log     logger.Logger
 	comp    compression.Compressor
+	signKey sign.SignKey
 }
 
-func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logger, c compression.Compressor) *JSONSender {
+func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logger, c compression.Compressor, k sign.SignKey) *JSONSender {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
@@ -41,6 +43,7 @@ func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logge
 		client:  client,
 		log:     l,
 		comp:    c,
+		signKey: k,
 	}
 }
 
@@ -167,6 +170,9 @@ func (s *JSONSender) buildRequest(ctx context.Context, body []byte) (*http.Reque
 		req.Header.Set("Content-Encoding", enc)
 		req.Header.Set("Accept-Encoding", enc)
 	}
+	if s.signKey != "" {
+		req.Header.Set("HashSHA256", sign.NewSignerSHA256().Sign(body, s.signKey))
+	}
 	return req, nil
 }
 
@@ -201,7 +207,11 @@ func (s *JSONSender) buildBatchRequest(ctx context.Context, body []byte) (*http.
 		req.Header.Set("Content-Encoding", enc)
 		req.Header.Set("Accept-Encoding", enc)
 	}
+	if s.signKey != "" {
+		req.Header.Set("HashSHA256", sign.NewSignerSHA256().Sign(body, s.signKey))
+	}
 	return req, nil
+
 }
 
-var _ SenderInterface = NewJSONSender("", 0, nil, nil, nil)
+var _ SenderInterface = NewJSONSender("", 0, nil, nil, nil, "")

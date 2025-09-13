@@ -8,6 +8,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sender"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
 )
 
@@ -17,6 +18,8 @@ type AppConfig struct {
 	ReportInterval time.Duration
 	PollInterval   time.Duration
 	LoopIterations int
+	SignKey        sign.SignKey
+	RateLimit      int
 }
 
 const (
@@ -25,6 +28,7 @@ const (
 	DefaultAppReportInterval = 10 * time.Second
 	DefaultAppPollInterval   = 2 * time.Second
 	DefaultLoopIterations    = 0
+	DefaultRateLimit         = 1
 )
 
 func RunAgent(
@@ -64,8 +68,8 @@ var ModuleCollector = fx.Module("collector",
 func ProvideSender(cfg AppConfig, l logger.Logger, c compression.Compressor) ([]sender.SenderInterface, error) {
 	senders := make([]sender.SenderInterface, 0, 2)
 	senders = append(senders,
-		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l),
-		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c),
+		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l, cfg.SignKey),
+		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c, cfg.SignKey),
 	)
 	return senders, nil
 }
@@ -81,6 +85,7 @@ func ProvideAgentLoopConfig(cfg AppConfig) AgentLoopConfig {
 		PollInterval:   cfg.PollInterval,
 		ReportInterval: cfg.ReportInterval,
 		Iterations:     cfg.LoopIterations,
+		RateLimit:      cfg.RateLimit,
 	}
 }
 

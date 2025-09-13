@@ -146,3 +146,15 @@ func TestParseFlags_InvalidValues(t *testing.T) {
 		}
 	})
 }
+
+func TestParseFlags_Key(t *testing.T) {
+	withArgs([]string{"-k", "secret"}, func() {
+		got, err := parseFlags()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.SignKey != "secret" {
+			t.Fatalf("key mismatch: %q", got.SignKey)
+		}
+	})
+}

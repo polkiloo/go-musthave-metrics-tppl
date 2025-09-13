@@ -8,6 +8,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 )
 
 type GinHandler struct {
@@ -76,9 +77,13 @@ func register(p struct {
 	H    *GinHandler
 	L    logger.Logger
 	C    compression.Compressor
+	S    sign.Signer
+	K    sign.SignKey
 	Pool db.Pool `optional:"true"`
 }) {
-	p.R.Use(logger.Middleware(p.L), compression.Middleware(p.C))
+	p.R.Use(logger.Middleware(p.L))
+	p.R.Use(sign.Middleware(p.S, p.K))
+	p.R.Use(compression.Middleware(p.C))
 	RegisterRoutes(p.R, p.H, p.Pool)
 }
 
