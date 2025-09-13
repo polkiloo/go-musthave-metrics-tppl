@@ -16,6 +16,7 @@ type AgentFlags struct {
 	ReportIntervalSec *int
 	PollIntervalSec   *int
 	SignKey           string
+	RateLimit         *int
 }
 
 var (
@@ -25,6 +26,7 @@ var (
 type ReportSecondsFlagValue struct{ Sec *int }
 type PollSecondsFlagValue struct{ Sec *int }
 type SignKeyFlagValue struct{ SignKey string }
+type RateLimitFlagValue struct{ Rate *int }
 
 func ParseReportSecondsFlag(value string, present bool) (ReportSecondsFlagValue, error) {
 	if !present {
@@ -55,6 +57,17 @@ func ParseSignKeyFlag(value string, present bool) (SignKeyFlagValue, error) {
 	return SignKeyFlagValue{SignKey: value}, nil
 }
 
+func ParseRateLimitFlag(value string, present bool) (RateLimitFlagValue, error) {
+	if !present {
+		return RateLimitFlagValue{}, nil
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil || n <= 0 {
+		return RateLimitFlagValue{}, fmt.Errorf("invalid -l (rate limit): %q", value)
+	}
+	return RateLimitFlagValue{Rate: &n}, nil
+}
+
 func flagsValueMapper(dst *AgentFlags, v commoncfg.FlagValue) error {
 	switch t := v.(type) {
 	case nil:
@@ -80,6 +93,11 @@ func flagsValueMapper(dst *AgentFlags, v commoncfg.FlagValue) error {
 	case SignKeyFlagValue:
 		dst.SignKey = t.SignKey
 		return nil
+	case RateLimitFlagValue:
+		if t.Rate != nil {
+			dst.RateLimit = t.Rate
+		}
+		return nil
 	default:
 		return nil
 	}
@@ -96,6 +114,7 @@ func parseFlags() (AgentFlags, error) {
 	fs.String("r", "", "reportInterval in seconds (default 10)")
 	fs.String("p", "", "pollInterv1al in seconds (default 2)")
 	fs.String("k", "", "key for sign(default empty, no signing)")
+	fs.String("l", "", "rate limit (default 1)")
 
 	return commoncfg.
 		NewDispatcher[AgentFlags](fs, flagsValueMapper).
@@ -103,5 +122,6 @@ func parseFlags() (AgentFlags, error) {
 		Handle("r", commoncfg.Lift(ParseReportSecondsFlag)).
 		Handle("p", commoncfg.Lift(ParsePollSecondsFlag)).
 		Handle("k", commoncfg.Lift(ParseSignKeyFlag)).
+		Handle("l", commoncfg.Lift(ParseRateLimitFlag)).
 		Parse(os.Args[1:])
 }

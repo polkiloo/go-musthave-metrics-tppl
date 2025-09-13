@@ -14,6 +14,7 @@ var defaultAppConfig = agent.AppConfig{
 	PollInterval:   agent.DefaultAppPollInterval,
 	ReportInterval: agent.DefaultAppReportInterval,
 	LoopIterations: agent.DefaultLoopIterations,
+	RateLimit:      agent.DefaultRateLimit,
 }
 
 func TestBuildAgentConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
@@ -21,6 +22,7 @@ func TestBuildAgentConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
 		EnvAddressVarName:        "",
 		EnvReportIntervalVarName: "",
 		EnvPollIntervalVarName:   "",
+		EnvRateLimitVarName:      "",
 	}, func() {
 		withArgs(nil, func() {
 			got, err := buildAgentConfig()
@@ -39,6 +41,9 @@ func TestBuildAgentConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
 			if got.PollInterval != defaultAppConfig.PollInterval {
 				t.Fatalf("want default poll interval %v, got %v", defaultAppConfig.PollInterval, got.PollInterval)
 			}
+			if got.RateLimit != defaultAppConfig.RateLimit {
+				t.Fatalf("want default rate limit %d, got %d", defaultAppConfig.RateLimit, got.RateLimit)
+			}
 		})
 	})
 }
@@ -49,7 +54,7 @@ func TestBuildAgentConfig_FlagsOnly_UsedWhenNoEnv(t *testing.T) {
 		EnvReportIntervalVarName: "",
 		EnvPollIntervalVarName:   "",
 	}, func() {
-		withArgs([]string{"-a", "flag-host:9090", "-r", "15", "-p", "3"}, func() {
+		withArgs([]string{"-a", "flag-host:9090", "-r", "15", "-p", "3", "-l", "5"}, func() {
 			got, err := buildAgentConfig()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -66,6 +71,9 @@ func TestBuildAgentConfig_FlagsOnly_UsedWhenNoEnv(t *testing.T) {
 			if got.PollInterval != 3*time.Second {
 				t.Fatalf("want poll=3s, got %v", got.PollInterval)
 			}
+			if got.RateLimit != 5 {
+				t.Fatalf("want ratelimit=5, got %d", got.RateLimit)
+			}
 		})
 	})
 }
@@ -75,6 +83,7 @@ func TestBuildAgentConfig_EnvOnly_EnvWins(t *testing.T) {
 		EnvAddressVarName:        "env-host:8081",
 		EnvReportIntervalVarName: "20",
 		EnvPollIntervalVarName:   "4",
+		EnvRateLimitVarName:      "7",
 	}, func() {
 		withArgs(nil, func() {
 			got, err := buildAgentConfig()
@@ -90,6 +99,9 @@ func TestBuildAgentConfig_EnvOnly_EnvWins(t *testing.T) {
 			if got.PollInterval != 4*time.Second {
 				t.Fatalf("want poll=4s, got %v", got.PollInterval)
 			}
+			if got.RateLimit != 7 {
+				t.Fatalf("want ratelimit=7, got %d", got.RateLimit)
+			}
 		})
 	})
 }
@@ -99,8 +111,9 @@ func TestBuildAgentConfig_EnvBeatsFlags_ForEachField(t *testing.T) {
 		EnvAddressVarName:        "env-host:8000",
 		EnvReportIntervalVarName: "30",
 		EnvPollIntervalVarName:   "6",
+		EnvRateLimitVarName:      "9",
 	}, func() {
-		withArgs([]string{"-a", "flag-host:9000", "-r", "10", "-p", "2"}, func() {
+		withArgs([]string{"-a", "flag-host:9000", "-r", "10", "-p", "2", "-l", "3"}, func() {
 			got, err := buildAgentConfig()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -114,15 +127,19 @@ func TestBuildAgentConfig_EnvBeatsFlags_ForEachField(t *testing.T) {
 			if got.PollInterval != 6*time.Second {
 				t.Fatalf("env must win for poll=6s, got %v", got.PollInterval)
 			}
+			if got.RateLimit != 9 {
+				t.Fatalf("env must win for ratelimit=9, got %d", got.RateLimit)
+			}
 		})
 	})
 }
 
 func TestBuildAgentConfig_MixedPerField_EnvPortFlagsHost(t *testing.T) {
 	withEnvMap(map[string]string{
-		EnvAddressVarName: ":7070",
+		EnvAddressVarName:   ":7070",
+		EnvRateLimitVarName: "",
 	}, func() {
-		withArgs([]string{"-a", "flag-host:9999"}, func() {
+		withArgs([]string{"-a", "flag-host:9999", "-l", "8"}, func() {
 			got, err := buildAgentConfig()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -132,6 +149,9 @@ func TestBuildAgentConfig_MixedPerField_EnvPortFlagsHost(t *testing.T) {
 			}
 			if got.Port != 7070 {
 				t.Fatalf("want port from env 7070, got %d", got.Port)
+			}
+			if got.RateLimit != 8 {
+				t.Fatalf("want ratelimit from flags 8, got %d", got.RateLimit)
 			}
 		})
 	})

@@ -11,6 +11,7 @@ import (
 type CollectorInterface interface {
 	Collect()
 	Snapshot() []*models.Metrics
+	SetGauge(name string, value float64)
 }
 
 type Collector struct {
@@ -113,6 +114,19 @@ func (c *Collector) Snapshot() []*models.Metrics {
 		out = append(out, cloneMetrics(m))
 	}
 	return out
+}
+
+func (c *Collector) SetGauge(name string, value float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if m, ok := c.metrics[name]; ok && m.MType == models.GaugeType && m.Value != nil {
+		*m.Value = value
+		return
+	}
+	if m, err := models.NewGaugeMetrics(name, &value); err == nil {
+		c.metrics[name] = m
+	}
 }
 
 func cloneMetrics(m *models.Metrics) *models.Metrics {

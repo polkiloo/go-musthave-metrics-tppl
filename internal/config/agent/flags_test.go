@@ -26,8 +26,8 @@ func TestParseFlags_NoArgs(t *testing.T) {
 		if got.addressFlag.Port != nil {
 			t.Fatalf("want nil port, got %d", *got.addressFlag.Port)
 		}
-		if got.ReportIntervalSec != nil || got.PollIntervalSec != nil {
-			t.Fatalf("unexpected intervals: report=%v poll=%v", got.ReportIntervalSec, got.PollIntervalSec)
+		if got.ReportIntervalSec != nil || got.PollIntervalSec != nil || got.RateLimit != nil {
+			t.Fatalf("unexpected values: report=%v poll=%v limit=%v", got.ReportIntervalSec, got.PollIntervalSec, got.RateLimit)
 		}
 	})
 }
@@ -101,8 +101,8 @@ func TestParseFlags_Address_Invalid_Error(t *testing.T) {
 	})
 }
 
-func TestParseFlags_ReportAndPoll_OK(t *testing.T) {
-	withArgs([]string{"-r", "15", "-p=3"}, func() {
+func TestParseFlags_ReportPollLimit_OK(t *testing.T) {
+	withArgs([]string{"-r", "15", "-p=3", "-l", "5"}, func() {
 		got, err := parseFlags()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -112,6 +112,9 @@ func TestParseFlags_ReportAndPoll_OK(t *testing.T) {
 		}
 		if got.PollIntervalSec == nil || *got.PollIntervalSec != 3 {
 			t.Fatalf("poll mismatch: %v", got.PollIntervalSec)
+		}
+		if got.RateLimit == nil || *got.RateLimit != 5 {
+			t.Fatalf("limit mismatch: %v", got.RateLimit)
 		}
 	})
 }
@@ -173,15 +176,19 @@ func TestFlagsValueMapper_Address_EmptyHost_OnlyPortApplied(t *testing.T) {
 	}
 }
 
-func TestFlagsValueMapper_ReportAndPoll(t *testing.T) {
+func TestFlagsValueMapper_ReportPollLimit(t *testing.T) {
 	var dst AgentFlags
 
 	rep := 12
 	poll := 5
+	lim := 7
 	if err := flagsValueMapper(&dst, ReportSecondsFlagValue{Sec: &rep}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if err := flagsValueMapper(&dst, PollSecondsFlagValue{Sec: &poll}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := flagsValueMapper(&dst, RateLimitFlagValue{Rate: &lim}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -190,6 +197,9 @@ func TestFlagsValueMapper_ReportAndPoll(t *testing.T) {
 	}
 	if dst.PollIntervalSec == nil || *dst.PollIntervalSec != 5 {
 		t.Fatalf("poll mismatch: %v", dst.PollIntervalSec)
+	}
+	if dst.RateLimit == nil || *dst.RateLimit != 7 {
+		t.Fatalf("limit mismatch: %v", dst.RateLimit)
 	}
 }
 
@@ -270,4 +280,39 @@ func TestParseFlags_Key(t *testing.T) {
 			t.Fatalf("key mismatch: %q", got.SignKey)
 		}
 	})
+}
+
+func TestParseFlags_RateLimit_Invalid_Error(t *testing.T) {
+	withArgs([]string{"-l", "0"}, func() {
+		_, err := parseFlags()
+		if err == nil {
+			t.Fatalf("expected error for invalid -l")
+		}
+	})
+}
+
+func TestParseRateLimitFlag_OK(t *testing.T) {
+	v, err := ParseRateLimitFlag("5", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if v.Rate == nil || *v.Rate != 5 {
+		t.Fatalf("mismatch: %+v", v)
+	}
+}
+
+func TestParseRateLimitFlag_NotPresent(t *testing.T) {
+	v, err := ParseRateLimitFlag("5", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if v.Rate != nil {
+		t.Fatalf("want nil when not present, got %+v", v)
+	}
+}
+
+func TestParseRateLimitFlag_Invalid(t *testing.T) {
+	if _, err := ParseRateLimitFlag("0", true); err == nil {
+		t.Fatalf("expected error for 0")
+	}
 }

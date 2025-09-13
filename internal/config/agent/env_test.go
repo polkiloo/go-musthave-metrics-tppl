@@ -34,6 +34,7 @@ func TestGetEnvVars_NoVars(t *testing.T) {
 		EnvAddressVarName:        "",
 		EnvReportIntervalVarName: "",
 		EnvPollIntervalVarName:   "",
+		EnvRateLimitVarName:      "",
 	}, func() {
 		got, err := getEnvVars()
 		if err != nil {
@@ -42,7 +43,7 @@ func TestGetEnvVars_NoVars(t *testing.T) {
 		if got.Host != "" {
 			t.Fatalf("want empty host, got %q", got.Host)
 		}
-		if got.Port != nil || got.ReportIntervalSec != nil || got.PollIntervalSec != nil {
+		if got.Port != nil || got.ReportIntervalSec != nil || got.PollIntervalSec != nil || got.RateLimit != nil {
 			t.Fatalf("want all nil pointers, got %+v", got)
 		}
 	})
@@ -119,6 +120,7 @@ func TestGetEnvVars_ReportAndPoll_Valid(t *testing.T) {
 	withEnvMap(map[string]string{
 		EnvReportIntervalVarName: "15",
 		EnvPollIntervalVarName:   "3",
+		EnvRateLimitVarName:      "4",
 	}, func() {
 		got, err := getEnvVars()
 		if err != nil {
@@ -129,6 +131,9 @@ func TestGetEnvVars_ReportAndPoll_Valid(t *testing.T) {
 		}
 		if got.PollIntervalSec == nil || *got.PollIntervalSec != 3 {
 			t.Fatalf("poll mismatch: %+v", got.PollIntervalSec)
+		}
+		if got.RateLimit == nil || *got.RateLimit != 4 {
+			t.Fatalf("ratelimit mismatch: %+v", got.RateLimit)
 		}
 	})
 }
@@ -170,6 +175,7 @@ func TestGetEnvVars_Combined_AllSources(t *testing.T) {
 		EnvAddressVarName:        "agent.local:8088",
 		EnvReportIntervalVarName: "10",
 		EnvPollIntervalVarName:   "2",
+		EnvRateLimitVarName:      "6",
 	}, func() {
 		got, err := getEnvVars()
 		if err != nil {
@@ -187,6 +193,9 @@ func TestGetEnvVars_Combined_AllSources(t *testing.T) {
 		if got.PollIntervalSec == nil || *got.PollIntervalSec != 2 {
 			t.Fatalf("poll mismatch: %+v", got.PollIntervalSec)
 		}
+		if got.RateLimit == nil || *got.RateLimit != 6 {
+			t.Fatalf("ratelimit mismatch: %+v", got.RateLimit)
+		}
 	})
 }
 
@@ -200,4 +209,18 @@ func TestGetEnvVars_Key(t *testing.T) {
 			t.Fatalf("key mismatch: %q", got.SignKey)
 		}
 	})
+}
+
+func TestGetEnvVars_RateLimit_Invalid_Ignored(t *testing.T) {
+	for _, v := range []string{"0", "-2", "oops"} {
+		withEnvMap(map[string]string{EnvRateLimitVarName: v}, func() {
+			got, err := getEnvVars()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.RateLimit != nil {
+				t.Fatalf("invalid ratelimit must be ignored; got %v", *got.RateLimit)
+			}
+		})
+	}
 }

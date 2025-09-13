@@ -12,6 +12,7 @@ const (
 	EnvReportIntervalVarName = "REPORT_INTERVAL"
 	EnvPollIntervalVarName   = "POLL_INTERVAL"
 	EnvKeyVarName            = "KEY"
+	EnvRateLimitVarName      = "RATE_LIMIT"
 )
 
 type AgentEnvVars struct {
@@ -20,6 +21,7 @@ type AgentEnvVars struct {
 	ReportIntervalSec *int
 	PollIntervalSec   *int
 	SignKey           string
+	RateLimit         *int
 }
 
 func getEnvVars() (AgentEnvVars, error) {
@@ -41,5 +43,10 @@ func getEnvVars() (AgentEnvVars, error) {
 		}
 	}
 	e.SignKey = os.Getenv(EnvKeyVarName)
+	if v := os.Getenv(EnvRateLimitVarName); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			e.RateLimit = &n
+		}
+	}
 	return e, nil
 }
