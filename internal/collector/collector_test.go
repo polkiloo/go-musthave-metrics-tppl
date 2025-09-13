@@ -168,3 +168,19 @@ func TestCloneMetrics_NilInput(t *testing.T) {
 		t.Errorf("expected nil, got %#v", got)
 	}
 }
+
+func TestCollector_SetGauge(t *testing.T) {
+	c := NewCollector()
+	c.SetGauge("MyGauge", 42.0)
+	snap := c.Snapshot()
+	m, ok := findMetric(snap, "MyGauge")
+	if !ok || m.Value == nil || *m.Value != 42.0 {
+		t.Fatalf("SetGauge failed: %+v", m)
+	}
+	c.SetGauge("MyGauge", 100.0)
+	snap = c.Snapshot()
+	m, _ = findMetric(snap, "MyGauge")
+	if m.Value == nil || *m.Value != 100.0 {
+		t.Fatalf("SetGauge update failed: %+v", m)
+	}
+}

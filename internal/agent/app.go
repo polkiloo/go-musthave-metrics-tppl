@@ -19,6 +19,7 @@ type AppConfig struct {
 	PollInterval   time.Duration
 	LoopIterations int
 	SignKey        sign.SignKey
+	RateLimit      int
 }
 
 const (
@@ -27,6 +28,7 @@ const (
 	DefaultAppReportInterval = 10 * time.Second
 	DefaultAppPollInterval   = 2 * time.Second
 	DefaultLoopIterations    = 0
+	DefaultRateLimit         = 1
 )
 
 func RunAgent(
@@ -83,6 +85,7 @@ func ProvideAgentLoopConfig(cfg AppConfig) AgentLoopConfig {
 		PollInterval:   cfg.PollInterval,
 		ReportInterval: cfg.ReportInterval,
 		Iterations:     cfg.LoopIterations,
+		RateLimit:      cfg.RateLimit,
 	}
 }
 
