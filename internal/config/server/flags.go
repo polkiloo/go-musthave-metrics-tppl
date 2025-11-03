@@ -15,6 +15,7 @@ type ServerFlags struct {
 	storeInterval *int
 	fileStorage   string
 	restore       *bool
+	SignKey       string
 }
 
 var (
@@ -31,6 +32,7 @@ func parseFlags() (ServerFlags, error) {
 	fs.Int("i", defaultStoreInterval, "store interval in seconds")
 	fs.String("f", defaultFileStorage, "path to file for metrics storage")
 	fs.Bool("r", defaultRestore, "restore metrics from file on start")
+	fs.String("k", "", "key for hashing")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		return ServerFlags{}, err
@@ -61,5 +63,9 @@ func parseFlags() (ServerFlags, error) {
 		}
 		flags.restore = &b
 	}
+	if set["k"] {
+		flags.SignKey = fs.Lookup("k").Value.String()
+	}
+
 	return flags, nil
 }

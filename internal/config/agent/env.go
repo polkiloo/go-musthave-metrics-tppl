@@ -11,6 +11,8 @@ const (
 	EnvAddressVarName        = "ADDRESS"
 	EnvReportIntervalVarName = "REPORT_INTERVAL"
 	EnvPollIntervalVarName   = "POLL_INTERVAL"
+	EnvKeyVarName            = "KEY"
+	EnvRateLimitVarName      = "RATE_LIMIT"
 )
 
 type AgentEnvVars struct {
@@ -18,6 +20,8 @@ type AgentEnvVars struct {
 	Port              *int
 	ReportIntervalSec *int
 	PollIntervalSec   *int
+	SignKey           *string
+	RateLimit         *int
 }
 
 func getEnvVars() (AgentEnvVars, error) {
@@ -28,14 +32,22 @@ func getEnvVars() (AgentEnvVars, error) {
 	e.Host = hp.Host
 	e.Port = hp.Port
 
-	if v := os.Getenv(EnvReportIntervalVarName); v != "" {
+	if v, ok := os.LookupEnv(EnvReportIntervalVarName); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			e.ReportIntervalSec = &n
 		}
 	}
-	if v := os.Getenv(EnvPollIntervalVarName); v != "" {
+	if v, ok := os.LookupEnv(EnvPollIntervalVarName); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			e.PollIntervalSec = &n
+		}
+	}
+	if v, ok := os.LookupEnv(EnvKeyVarName); ok {
+		e.SignKey = &v
+	}
+	if v, ok := os.LookupEnv(EnvRateLimitVarName); ok && v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			e.RateLimit = &n
 		}
 	}
 	return e, nil

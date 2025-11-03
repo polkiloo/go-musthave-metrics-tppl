@@ -147,3 +147,15 @@ func TestGetEnvVars_SetIPv6Bracketed(t *testing.T) {
 		}
 	})
 }
+
+func TestGetEnvVars_Key(t *testing.T) {
+	withEnv(EnvKeyVarName, "secret", func() {
+		got, err := getEnvVars()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.SignKey != "secret" {
+			t.Fatalf("key mismatch: %q", got.SignKey)
+		}
+	})
+}

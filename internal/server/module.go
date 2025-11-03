@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
 )
 
@@ -17,6 +18,7 @@ type AppConfig struct {
 	StoreInterval   int
 	FileStoragePath string
 	Restore         bool
+	SignKey         sign.SignKey
 }
 
 const (

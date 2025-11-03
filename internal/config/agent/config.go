@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
 )
 
@@ -15,6 +16,7 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		PollInterval:   agent.DefaultAppPollInterval,
 		ReportInterval: agent.DefaultAppReportInterval,
 		LoopIterations: agent.DefaultLoopIterations,
+		RateLimit:      agent.DefaultRateLimit,
 	}
 	cfg := defaultAppConfig
 
@@ -43,6 +45,18 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		cfg.PollInterval = time.Duration(*envVars.PollIntervalSec) * time.Second
 	} else if flagArgs.PollIntervalSec != nil {
 		cfg.PollInterval = time.Duration(*flagArgs.PollIntervalSec) * time.Second
+	}
+
+	if envVars.SignKey != nil {
+		cfg.SignKey = sign.SignKey(*envVars.SignKey)
+	} else if flagArgs.SignKey != "" {
+		cfg.SignKey = sign.SignKey(flagArgs.SignKey)
+	}
+
+	if envVars.RateLimit != nil {
+		cfg.RateLimit = *envVars.RateLimit
+	} else if flagArgs.RateLimit != nil {
+		cfg.RateLimit = *flagArgs.RateLimit
 	}
 
 	return cfg, nil
