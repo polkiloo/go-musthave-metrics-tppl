@@ -6,7 +6,7 @@ CACHE_PREFIX     ?= $(HOME)/.cache/go-$(PLATFORM)
 GOMODCACHE_DIR   ?= $(CACHE_PREFIX)/mod
 GOBUILDCACHE_DIR ?= $(CACHE_PREFIX)/build
 
-.PHONY: race-docker ensure-dirs 
+.PHONY: race-docker ensure-dirs coverage
 
 race-docker: ensure-dirs
 	docker pull $(GOIMAGE)
@@ -23,4 +23,16 @@ race-docker: ensure-dirs
 
 ensure-dirs:
 	@mkdir -p "$(GOMODCACHE_DIR)" "$(GOBUILDCACHE_DIR)"
-
+	
+coverage:
+	@TMP=$$(mktemp); \
+	if go test -coverprofile=coverage.out ./... >$$TMP; then \
+		go tool cover -func=coverage.out | awk '/^total:/ {print $$3}'; \
+		STATUS=0; \
+	else \
+		cat $$TMP; \
+		STATUS=1; \
+	fi; \
+	RM_FILES="$$TMP coverage.out"; \
+	rm -f $$RM_FILES; \
+	exit $$STATUS

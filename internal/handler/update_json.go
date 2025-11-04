@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
@@ -31,6 +32,8 @@ func (h *GinHandler) UpdateJSON(c *gin.Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+
+	audit.AddRequestMetrics(c, in.ID)
 
 	if h.afterUpdate != nil {
 		h.afterUpdate()

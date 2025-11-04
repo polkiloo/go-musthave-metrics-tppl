@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
@@ -14,6 +15,7 @@ import (
 type GinHandler struct {
 	service     service.MetricServiceInterface
 	afterUpdate func()
+	logger      logger.Logger
 }
 
 func NewGinHandler(s service.MetricServiceInterface) *GinHandler {
@@ -73,21 +75,28 @@ func RegisterRoutes(r *gin.Engine, h *GinHandler, pool db.Pool) {
 
 func register(p struct {
 	fx.In
-	R    *gin.Engine
-	H    *GinHandler
-	L    logger.Logger
-	C    compression.Compressor
-	S    sign.Signer
-	K    sign.SignKey
-	Pool db.Pool `optional:"true"`
+	R     *gin.Engine
+	H     *GinHandler
+	L     logger.Logger
+	C     compression.Compressor
+	S     sign.Signer
+	K     sign.SignKey
+	A     audit.Publisher `optional:"true"`
+	Clock audit.Clock     `optional:"true"`
+	Pool  db.Pool         `optional:"true"`
 }) {
+	p.H.SetLogger(p.L)
 	p.R.Use(logger.Middleware(p.L))
 	p.R.Use(sign.Middleware(p.S, p.K))
 	p.R.Use(compression.Middleware(p.C))
+	if p.A != nil {
+		p.R.Use(audit.Middleware(p.A, p.L, p.Clock))
+	}
 	RegisterRoutes(p.R, p.H, p.Pool)
 }
 
 func (h *GinHandler) SetAfterUpdateHook(fn func()) { h.afterUpdate = fn }
+func (h *GinHandler) SetLogger(l logger.Logger)    { h.logger = l }
 
 func (h *GinHandler) Service() service.MetricServiceInterface { return h.service }
 

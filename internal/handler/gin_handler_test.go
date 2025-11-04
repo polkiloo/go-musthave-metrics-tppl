@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
@@ -179,13 +180,15 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 
 	register(struct {
 		fx.In
-		R    *gin.Engine
-		H    *GinHandler
-		L    logger.Logger
-		C    compression.Compressor
-		S    sign.Signer
-		K    sign.SignKey
-		Pool db.Pool `optional:"true"`
+		R     *gin.Engine
+		H     *GinHandler
+		L     logger.Logger
+		C     compression.Compressor
+		S     sign.Signer
+		K     sign.SignKey
+		A     audit.Publisher `optional:"true"`
+		Clock audit.Clock     `optional:"true"`
+		Pool  db.Pool         `optional:"true"`
 	}{R: r, H: h, L: l, C: c, S: sign.NewSignerSHA256(), K: ""})
 
 	if len(r.Handlers) == 0 {

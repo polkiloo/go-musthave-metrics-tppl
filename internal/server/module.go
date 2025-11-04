@@ -19,6 +19,8 @@ type AppConfig struct {
 	FileStoragePath string
 	Restore         bool
 	SignKey         sign.SignKey
+	AuditFile       string
+	AuditURL        string
 }
 
 const (

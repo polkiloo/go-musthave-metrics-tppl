@@ -112,3 +112,23 @@ func TestBuildServerConfig_KeyPriority(t *testing.T) {
 		})
 	})
 }
+
+func TestBuildServerConfig_AuditPriority(t *testing.T) {
+	withEnv(EnvAuditFileVarName, "/tmp/env.log", func() {
+		withEnv(EnvAuditURLVarName, "https://env.example", func() {
+			args := []string{"--audit-file", "/tmp/flag.log", "--audit-url", "https://flag.example"}
+			withArgs(args, func() {
+				cfg, err := buildServerConfig()
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if cfg.AuditFile != "/tmp/env.log" {
+					t.Fatalf("env audit file must win: got %q", cfg.AuditFile)
+				}
+				if cfg.AuditURL != "https://env.example" {
+					t.Fatalf("env audit url must win: got %q", cfg.AuditURL)
+				}
+			})
+		})
+	})
+}
