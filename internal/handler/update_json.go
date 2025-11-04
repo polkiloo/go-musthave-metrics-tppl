@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
-	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
 func (h *GinHandler) UpdateJSON(c *gin.Context) {
@@ -16,8 +15,10 @@ func (h *GinHandler) UpdateJSON(c *gin.Context) {
 		return
 	}
 
-	var in models.Metrics
-	if err := json.NewDecoder(c.Request.Body).Decode(&in); err != nil {
+	in := acquireMetric()
+	defer releaseMetric(in)
+
+	if err := json.NewDecoder(c.Request.Body).Decode(in); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -26,7 +27,7 @@ func (h *GinHandler) UpdateJSON(c *gin.Context) {
 		return
 	}
 
-	err := h.service.ProcessUpdate(&in)
+	err := h.service.ProcessUpdate(in)
 
 	if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)

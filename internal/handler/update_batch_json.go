@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
-	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
 func (h *GinHandler) UpdatesJSON(c *gin.Context) {
@@ -15,11 +14,16 @@ func (h *GinHandler) UpdatesJSON(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnsupportedMediaType)
 		return
 	}
-	var metrics []models.Metrics
+	batch := acquireMetricsBatch()
+	defer releaseMetricsBatch(batch)
+
+	metrics := *batch
 	if err := json.NewDecoder(c.Request.Body).Decode(&metrics); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+	*batch = metrics
+	metrics = *batch
 	for _, m := range metrics {
 		if m.ID == "" || m.MType == "" {
 			c.AbortWithStatus(http.StatusBadRequest)
@@ -31,11 +35,9 @@ func (h *GinHandler) UpdatesJSON(c *gin.Context) {
 		return
 	}
 
-	names := make([]string, 0, len(metrics))
-	for _, m := range metrics {
-		names = append(names, m.ID)
+	for i := range metrics {
+		audit.AddRequestMetrics(c, metrics[i].ID)
 	}
-	audit.AddRequestMetrics(c, names...)
 
 	if h.afterUpdate != nil {
 		h.afterUpdate()

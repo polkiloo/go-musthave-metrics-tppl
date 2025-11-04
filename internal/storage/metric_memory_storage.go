@@ -106,6 +106,38 @@ func (m *MemStorage) AllCounters() map[string]int64 {
 	return res
 }
 
+func (m *MemStorage) Snapshot() []models.Metrics {
+	metrics := make([]models.Metrics, 0, len(m.gauges.data)+len(m.counters.data))
+	gaugeValues := make([]float64, 0, len(m.gauges.data))
+	counterValues := make([]int64, 0, len(m.counters.data))
+
+	m.gauges.mu.RLock()
+	for name, value := range m.gauges.data {
+		gaugeValues = append(gaugeValues, value)
+		v := &gaugeValues[len(gaugeValues)-1]
+		metrics = append(metrics, models.Metrics{
+			ID:    name,
+			MType: models.GaugeType,
+			Value: v,
+		})
+	}
+	m.gauges.mu.RUnlock()
+
+	m.counters.mu.RLock()
+	for name, value := range m.counters.data {
+		counterValues = append(counterValues, value)
+		v := &counterValues[len(counterValues)-1]
+		metrics = append(metrics, models.Metrics{
+			ID:    name,
+			MType: models.CounterType,
+			Delta: v,
+		})
+	}
+	m.counters.mu.RUnlock()
+
+	return metrics
+}
+
 func (m *MemStorage) UpdateBatch(metrics []models.Metrics) error {
 	for i := range metrics {
 		mt := &metrics[i]

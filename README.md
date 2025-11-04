@@ -1,44 +1,82 @@
-# go-musthave-metrics-tpl
+## Профилирование и нагрузка
 
-Шаблон репозитория для трека «Сервер сбора метрик и алертинга».
+В репозитории определены make targets, которые запускают соответствующие бенчмарки, сохраняют `pprof` в директорию `profiles` и, при необходимости, эмулируют внешнюю нагрузку.
 
-## Начало работы
+### profile-storage — in-memory хранилище
 
-1. Склонируйте репозиторий в любую подходящую директорию на вашем компьютере.
-2. В корне репозитория выполните команду `go mod init <name>` (где `<name>` — адрес вашего репозитория на GitHub без префикса `https://`) для создания модуля.
+```bash
+# профиль до оптимизаций
+PROFILE_DIR=profiles/base make profile-storage
 
-## Обновление шаблона
+# профиль после оптимизаций
+PROFILE_DIR=profiles/optimized make profile-storage
 
-Чтобы иметь возможность получать обновления автотестов и других частей шаблона, выполните команду:
-
-```
-git remote add -m v2 template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
-```
-
-Для обновления кода автотестов выполните команду:
-
-```
-git fetch template && git checkout template/v2 .github
+# сравнение результатов
+go tool pprof -top -diff_base=profiles/base/storage.pprof profiles/optimized/storage.pprof
 ```
 
-Затем добавьте полученные изменения в свой репозиторий.
+### profile-collector — сбор системных метрик
 
-## Запуск автотестов
+```bash
+# профиль до оптимизаций
+PROFILE_DIR=profiles/base make profile-collector
 
-Для успешного запуска автотестов называйте ветки `iter<number>`, где `<number>` — порядковый номер инкремента. Например, в ветке с названием `iter4` запустятся автотесты для инкрементов с первого по четвёртый.
+# профиль после оптимизаций
+PROFILE_DIR=profiles/optimized make profile-collector
 
-При мёрже ветки с инкрементом в основную ветку `main` будут запускаться все автотесты.
+# сравнение результатов
+go tool pprof -top -diff_base=profiles/base/collector.pprof profiles/optimized/collector.pprof
+```
 
-Подробнее про локальный и автоматический запуск читайте в [README автотестов](https://github.com/Yandex-Practicum/go-autotests).
 
-## Структура проекта
+### profile-network — сетевой путь обновления метрик
 
-Приведённая в этом репозитории структура проекта является рекомендуемой, но не обязательной.
+```bash
+# базовый профиль до оптимизаций
+PROFILE_DIR=profiles/base make profile-network
 
-Это лишь пример организации кода, который поможет вам в реализации сервиса.
+# повторный запуск после оптимизаций
+PROFILE_DIR=profiles/optimized make profile-network
 
-При необходимости можно вносить изменения в структуру проекта, использовать любые библиотеки и предпочитаемые структурные паттерны организации кода приложения, например:
-- **DDD** (Domain-Driven Design)
-- **Clean Architecture**
-- **Hexagonal Architecture**
-- **Layered Architecture**
+# анализ изменений
+go tool pprof -top -diff_base=profiles/base/network.pprof profiles/optimized/network.pprof
+```
+Пример отчёта `pprof -top -diff_base` после оптимизации сетевого пути:
+
+```
+Type: alloc_space
+Time: 2025-11-05 00:41:02 MSK
+Showing nodes accounting for -1547.29kB, 25.09% of 6166kB total
+Dropped 9 nodes (cum <= 30.83kB)
+      flat  flat%   sum%        cum   cum%
+-1032.02kB 16.74% 16.74% -1032.02kB 16.74%  io.init.func1
+-1027.35kB 16.66% 33.40% -1027.35kB 16.66%  regexp/syntax.(*compiler).inst (inline)
+  516.64kB  8.38% 25.02%   516.64kB  8.38%  runtime.procresize
+ -514.63kB  8.35% 33.37%  -514.63kB  8.35%  regexp.mergeRuneSets.func2 (inline)
+    -514kB  8.34% 41.70%     -514kB  8.34%  bufio.NewReaderSize
+  512.05kB  8.30% 33.40%   512.05kB  8.30%  regexp/syntax.simplify1 (inline)
+  512.02kB  8.30% 25.09%   512.02kB  8.30%  net.ipToSockaddr
+         0     0% 25.09% -1032.02kB 16.74%  bufio.(*Writer).Flush
+         0     0% 25.09% -1029.92kB 16.70%  github.com/go-playground/validator/v10.init
+         0     0% 25.09% -1032.02kB 16.74%  io.Copy (inline)
+         0     0% 25.09% -1032.02kB 16.74%  io.CopyN
+         0     0% 25.09% -1032.02kB 16.74%  io.copyBuffer
+         0     0% 25.09% -1032.02kB 16.74%  io.discard.ReadFrom
+```
+
+- Бенчмарк: `BenchmarkGinHandlerUpdatesJSONNetwork` (пакет `internal/handler`).
+- Результат: `$(PROFILE_DIR)/network.pprof`, журнал нагрузки `$(PROFILE_DIR)/network_hey.txt` и лог сервера `$(PROFILE_DIR)/network_server.log` (создаются, если не установлен `SKIP_HEY=1`).
+- Цель автоматически поднимает `cmd/server` на адресе из `HEY_URL` (по умолчанию `http://localhost:8080`), ждёт готовности эндпоинта `/`, затем отправляет JSON батч метрик из `HEY_PAYLOAD` (по умолчанию `testdata/network_batch.json`) через `hey`.
+- При ошибке подключения `hey` выводит подробности и протокол сервера, а временные файлы удаляются. Чтобы снять только бенчмарк без запуска сервера и нагрузки, установите `SKIP_HEY=1`.
+
+### Параметры запуска
+
+Каждая цель поддерживает следующие переменные окружения:
+
+- `PROFILE_DIR` — путь к директории, в которую сохраняются профили (по умолчанию `profiles`).
+- `PROFILE_BENCH_COUNT` — число запусков бенчмарка для усреднения (по умолчанию `1`).
+- `NETWORK_BENCHTIME`, `COLLECTOR_BENCHTIME`, `STORAGE_BENCHTIME` — длительность соответствующего бенчмарка.
+- `HEY_URL`, `HEY_PAYLOAD`, `HEY_REQUESTS`, `HEY_CONCURRENCY` — параметры нагрузки утилиты hey в цели `profile-network`.
+- `SKIP_HEY=1` — пропустить сетевую нагрузку через hey и сохранить только профили бенчмарка.
+
+Файл `testdata/network_batch.json` содержит готовый набор метрик в формате JSON.

@@ -1,0 +1,5 @@
+[
+  {"id": "Alloc", "type": "gauge", "value": 12345.678},
+  {"id": "HeapInuse", "type": "gauge", "value": 987654.321},
+  {"id": "PollCount", "type": "counter", "delta": 1}
+]

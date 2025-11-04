@@ -107,22 +107,7 @@ func (s *MetricService) SaveFile(path string) error {
 	}
 	metrics := make([]models.Metrics, 0)
 	if ms, ok := s.store.(*storage.MemStorage); ok {
-		for name, v := range ms.AllGauges() {
-			val := v
-			m, err := models.NewGaugeMetrics(name, &val)
-			if err != nil {
-				continue
-			}
-			metrics = append(metrics, *m)
-		}
-		for name, v := range ms.AllCounters() {
-			val := v
-			m, err := models.NewCounterMetrics(name, &val)
-			if err != nil {
-				continue
-			}
-			metrics = append(metrics, *m)
-		}
+		metrics = append(metrics, ms.Snapshot()...)
 	}
 	b, err := json.Marshal(metrics)
 	if err != nil {
