@@ -8,22 +8,30 @@ import (
 )
 
 type (
-	Gauge   float64
+	// Gauge represents a floating-point metric value.
+	Gauge float64
+
+	// Counter represents an integer metric value that is typically aggregated.
 	Counter int64
 )
 
+// MetricType describes the domain-specific type of a metric (gauge or counter).
 type MetricType string
 
 const (
-	GaugeType   MetricType = "gauge"
+	// GaugeType indicates gauge metrics (floating-point values).
+	GaugeType MetricType = "gauge"
+	// CounterType indicates counter metrics (integer values).
 	CounterType MetricType = "counter"
 )
 
+// MetricTypes enumerates all supported metric types.
 var MetricTypes = []MetricType{
 	GaugeType,
 	CounterType,
 }
 
+// IsValid reports whether the metric type is supported by the service.
 func (t MetricType) IsValid() bool {
 	switch t {
 	case GaugeType, CounterType:
@@ -33,6 +41,7 @@ func (t MetricType) IsValid() bool {
 	}
 }
 
+// ParseMetricType converts a string into a MetricType and returns an error for unsupported values.
 func ParseMetricType(s string) (MetricType, error) {
 	mt := MetricType(s)
 	if mt.IsValid() {
@@ -41,6 +50,7 @@ func ParseMetricType(s string) (MetricType, error) {
 	return "", ErrMetricInvalidType
 }
 
+// GaugeNames lists Go runtime metrics that are collected as gauges.
 var GaugeNames = []string{
 	"Alloc", "BuckHashSys", "Frees", "GCCPUFraction", "GCSys",
 	"HeapAlloc", "HeapIdle", "HeapInuse", "HeapObjects", "HeapReleased",
@@ -50,20 +60,30 @@ var GaugeNames = []string{
 	"Sys", "TotalAlloc", "RandomValue",
 }
 
+// CounterNames lists metrics that are collected as counters.
 var CounterNames = []string{
 	"PollCount",
 }
+
 var (
-	GaugeSet   = make(map[string]struct{}, len(GaugeNames))
+	// GaugeSet provide quick membership checks for known runtime metrics.
+	GaugeSet = make(map[string]struct{}, len(GaugeNames))
+	// CounterSet provide quick membership checks for known runtime metrics.
 	CounterSet = make(map[string]struct{}, len(CounterNames))
 )
 
 var (
-	ErrMetricUnknownName      = errors.New("unknown metric name")
-	ErrMetricInvalidType      = errors.New("invalid metric type")
+	// ErrMetricUnknownName indicates that a metric with the provided name is not supported.
+	ErrMetricUnknownName = errors.New("unknown metric name")
+	// ErrMetricInvalidType indicates that the metric type is not recognised.
+	ErrMetricInvalidType = errors.New("invalid metric type")
+	// ErrMetricInvalidValueType reports that the value could not be parsed into the metric type.
 	ErrMetricInvalidValueType = errors.New("invalid value type for metric")
-	ErrMetricMissingValue     = errors.New("missing value for metric")
-	ErrMetricAmbiguousValue   = errors.New("both gauge and counter values are set")
+	// ErrMetricMissingValue is returned when a required metric value is absent.
+	ErrMetricMissingValue = errors.New("missing value for metric")
+	// ErrMetricAmbiguousValue reports that both gauge and counter values were provided simultaneously.
+	ErrMetricAmbiguousValue = errors.New("both gauge and counter values are set")
+	// ErrMetricNameTypeMismatch indicates a mismatch between metric name and type.
 	ErrMetricNameTypeMismatch = errors.New("metric name does not match the metric type")
 )
 
@@ -82,11 +102,9 @@ func init() {
 	initSets()
 }
 
-// NOTE: Не усложняем пример, вводя иерархическую вложенность структур.
-// Органичиваясь плоской моделью.
-// Delta и Value объявлены через указатели,
-// что бы отличать значение "0", от не заданного значения
-// и соответственно не кодировать в структуру.
+// Metrics represents a single metric payload exchanged between client and server.
+// Delta и Value объявлены через указатели, чтобы отличать значение "0" от не заданного значения и
+// соответственно не кодировать его в структуру.
 type Metrics struct {
 	ID    string     `json:"id"`
 	MType MetricType `json:"type"`
@@ -104,13 +122,18 @@ type Metrics struct {
 // _, ok := CounterSet[name]
 // return ok
 // }
+
+// IsGauge reports whether the metric type is GaugeType.
 func IsGauge(t MetricType) bool {
 	return t == GaugeType
 }
+
+// IsCounter reports whether the metric type is CounterType.
 func IsCounter(t MetricType) bool {
 	return t == CounterType
 }
 
+// NewGaugeMetrics constructs a gauge metric with the provided name and value.
 func NewGaugeMetrics(name string, value *float64) (*Metrics, error) {
 	// if !IsGaugeName(name) {
 	// 	if IsCounterName(name) {
@@ -126,6 +149,7 @@ func NewGaugeMetrics(name string, value *float64) (*Metrics, error) {
 	}, nil
 }
 
+// NewCounterMetrics constructs a counter metric with the provided name and delta.
 func NewCounterMetrics(name string, value *int64) (*Metrics, error) {
 	// if !IsCounterName(name) {
 	// 	if IsGaugeName(name) {
@@ -141,6 +165,7 @@ func NewCounterMetrics(name string, value *int64) (*Metrics, error) {
 	}, nil
 }
 
+// NewMetrics parses the string value according to the metric type and returns a Metrics instance.
 func NewMetrics(name string, value string, t MetricType) (*Metrics, error) {
 	if IsGauge(t) {
 		var p *float64
@@ -169,6 +194,7 @@ func NewMetrics(name string, value string, t MetricType) (*Metrics, error) {
 	return nil, fmt.Errorf("%w: %q", ErrMetricUnknownName, name)
 }
 
+// MarshalJSON serialises the metric to JSON while avoiding nil pointer panics.
 func (m *Metrics) MarshalJSON() ([]byte, error) {
 	if m == nil {
 		return []byte("null"), nil
@@ -203,6 +229,7 @@ func (m *Metrics) MarshalJSON() ([]byte, error) {
 	return json.Marshal(alias(*m))
 }
 
+// UnmarshalJSON deserialises metric JSON payloads into the Metrics struct.
 func (m *Metrics) UnmarshalJSON(data []byte) error {
 	type alias struct {
 		ID    string     `json:"id"`

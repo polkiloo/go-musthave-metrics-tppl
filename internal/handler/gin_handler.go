@@ -12,16 +12,19 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 )
 
+// GinHandler exposes HTTP handlers that implement the metrics API using Gin.
 type GinHandler struct {
 	service     service.MetricServiceInterface
 	afterUpdate func()
 	logger      logger.Logger
 }
 
+// NewGinHandler constructs a GinHandler that proxies requests to the provided metric service.
 func NewGinHandler(s service.MetricServiceInterface) *GinHandler {
 	return &GinHandler{service: s}
 }
 
+// RegisterUpdate registers all update endpoints (plain and JSON) on the supplied Gin engine.
 func (h *GinHandler) RegisterUpdate(r *gin.Engine) {
 	r.POST("/update", func(c *gin.Context) {
 		h.UpdateJSON(c)
@@ -44,6 +47,7 @@ func (h *GinHandler) RegisterUpdate(r *gin.Engine) {
 	})
 }
 
+// RegisterGetValue registers the endpoints that return metric values in both plain text and JSON formats.
 func (h *GinHandler) RegisterGetValue(r *gin.Engine) {
 	r.POST("/value", func(c *gin.Context) {
 		h.GetValueJSON(c)
@@ -58,12 +62,14 @@ func (h *GinHandler) RegisterGetValue(r *gin.Engine) {
 	})
 }
 
+// RegisterPing registers the database liveness endpoint that responds with HTTP 200 when the pool is ready.
 func (h *GinHandler) RegisterPing(r *gin.Engine, pool db.Pool) {
 	r.GET("/ping", func(c *gin.Context) {
 		h.Ping(c, pool)
 	})
 }
 
+// RegisterRoutes wires all public handler endpoints to the Gin engine.
 func RegisterRoutes(r *gin.Engine, h *GinHandler, pool db.Pool) {
 	h.RegisterUpdate(r)
 	h.RegisterGetValue(r)
@@ -95,11 +101,16 @@ func register(p struct {
 	RegisterRoutes(p.R, p.H, p.Pool)
 }
 
+// SetAfterUpdateHook installs a callback that is executed after each successful update request.
 func (h *GinHandler) SetAfterUpdateHook(fn func()) { h.afterUpdate = fn }
-func (h *GinHandler) SetLogger(l logger.Logger)    { h.logger = l }
 
+// SetLogger configures the structured logger used by the handler.
+func (h *GinHandler) SetLogger(l logger.Logger) { h.logger = l }
+
+// Service returns the underlying MetricServiceInterface used by the handler.
 func (h *GinHandler) Service() service.MetricServiceInterface { return h.service }
 
+// Module describes the fx module that provides the Gin HTTP handlers.
 var Module = fx.Module(
 	"handler",
 	fx.Provide(NewGinHandler),

@@ -43,14 +43,17 @@ const (
 	updated_at = NOW();`
 )
 
+// DBStorage persists metrics in PostgreSQL.
 type DBStorage struct {
 	pool db.Pool
 }
 
+// NewDBStorage constructs a database-backed MetricStorage implementation.
 func NewDBStorage(p db.Pool) *DBStorage {
 	return &DBStorage{pool: p}
 }
 
+// UpdateGauge upserts a gauge metric value.
 func (s *DBStorage) UpdateGauge(name string, value float64) {
 	_ = retrier.Do(context.Background(), func() error {
 		_, err := s.pool.Exec(context.Background(), sqlUpdateGauges,
@@ -60,6 +63,7 @@ func (s *DBStorage) UpdateGauge(name string, value float64) {
 	}, isPGConnError, retrier.DefaultDelays)
 }
 
+// UpdateCounter increments a counter metric in the database.
 func (s *DBStorage) UpdateCounter(name string, delta int64) {
 	_ = retrier.Do(context.Background(), func() error {
 		_, err := s.pool.Exec(context.Background(), sqlUpdateCounters,
@@ -69,6 +73,7 @@ func (s *DBStorage) UpdateCounter(name string, delta int64) {
 	}, isPGConnError, retrier.DefaultDelays)
 }
 
+// GetGauge retrieves a gauge value from the database.
 func (s *DBStorage) GetGauge(name string) (float64, error) {
 	var v float64
 	err := retrier.Do(context.Background(), func() error {
@@ -80,6 +85,7 @@ func (s *DBStorage) GetGauge(name string) (float64, error) {
 	return v, err
 }
 
+// GetCounter retrieves a counter value from the database.
 func (s *DBStorage) GetCounter(name string) (int64, error) {
 	var v int64
 	err := retrier.Do(context.Background(), func() error {
@@ -92,6 +98,7 @@ func (s *DBStorage) GetCounter(name string) (int64, error) {
 	return v, err
 }
 
+// SetGauge overwrites a gauge value in the database.
 func (s *DBStorage) SetGauge(name string, value float64) {
 	_ = retrier.Do(context.Background(), func() error {
 		_, err := s.pool.Exec(context.Background(), sqlSetGauges,
@@ -101,6 +108,7 @@ func (s *DBStorage) SetGauge(name string, value float64) {
 	}, isPGConnError, retrier.DefaultDelays)
 }
 
+// SetCounter overwrites a counter value in the database.
 func (s *DBStorage) SetCounter(name string, value int64) {
 	_ = retrier.Do(context.Background(), func() error {
 		_, err := s.pool.Exec(context.Background(), sqlSetCounters,
@@ -110,6 +118,7 @@ func (s *DBStorage) SetCounter(name string, value int64) {
 	}, isPGConnError, retrier.DefaultDelays)
 }
 
+// AllGauges returns all gauge metrics stored in the database.
 func (s *DBStorage) AllGauges() map[string]float64 {
 	var rows pgx.Rows
 	err := retrier.Do(context.Background(), func() error {
@@ -133,6 +142,7 @@ func (s *DBStorage) AllGauges() map[string]float64 {
 	return res
 }
 
+// AllCounters returns all counter metrics stored in the database.
 func (s *DBStorage) AllCounters() map[string]int64 {
 	var rows pgx.Rows
 	err := retrier.Do(context.Background(), func() error {
@@ -155,6 +165,7 @@ func (s *DBStorage) AllCounters() map[string]int64 {
 	return res
 }
 
+// UpdateBatch performs a batch upsert of metrics in a single transaction.
 func (s *DBStorage) UpdateBatch(metrics []models.Metrics) (err error) {
 	if len(metrics) == 0 {
 		return nil

@@ -10,6 +10,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 )
 
+// GetValuePlain handles GET /value/:type/:name requests returning metric values as plain text.
 func (h *GinHandler) GetValuePlain(c *gin.Context) {
 	metricType := models.MetricType(c.Param("type"))
 	if !metricType.IsValid() {

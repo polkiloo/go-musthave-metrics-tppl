@@ -18,13 +18,19 @@ import (
 )
 
 var (
-	ErrJSONSenderMarshal               = errors.New("marshal metric failed")
-	ErrJSONSenderEncodeBody            = errors.New("encode body failed")
-	ErrJSONSenderBuildRequest          = errors.New("build request failed")
+	// ErrJSONSenderMarshal indicates that serialising metrics to JSON failed.
+	ErrJSONSenderMarshal = errors.New("marshal metric failed")
+	// ErrJSONSenderEncodeBody indicates that request body compression failed.
+	ErrJSONSenderEncodeBody = errors.New("encode body failed")
+	// ErrJSONSenderBuildRequest indicates that an HTTP request could not be constructed.
+	ErrJSONSenderBuildRequest = errors.New("build request failed")
+	// ErrJSONSenderUnexpectedContentType indicates that the response content type was not JSON.
 	ErrJSONSenderUnexpectedContentType = errors.New("unexpected content-type")
-	ErrJSONSenderUnexpectedStatus      = errors.New("unexpected status")
+	// ErrJSONSenderUnexpectedStatus indicates that the server returned a non-200 status code.
+	ErrJSONSenderUnexpectedStatus = errors.New("unexpected status")
 )
 
+// JSONSender sends metrics encoded as JSON, optionally compressed.
 type JSONSender struct {
 	baseURL string
 	port    int
@@ -34,6 +40,7 @@ type JSONSender struct {
 	signKey sign.SignKey
 }
 
+// NewJSONSender constructs a JSONSender for communicating with the server.
 func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logger, c compression.Compressor, k sign.SignKey) *JSONSender {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
@@ -47,6 +54,7 @@ func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logge
 	}
 }
 
+// Send posts metrics one-by-one to the /update JSON endpoint.
 func (s *JSONSender) Send(metrics []*models.Metrics) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -56,6 +64,7 @@ func (s *JSONSender) Send(metrics []*models.Metrics) {
 	}
 }
 
+// SendBatch posts multiple metrics to the /updates JSON endpoint.
 func (s *JSONSender) SendBatch(metrics []*models.Metrics) {
 	if len(metrics) == 0 {
 		return

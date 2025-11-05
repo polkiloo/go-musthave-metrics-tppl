@@ -9,6 +9,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 )
 
+// UpdateJSON handles POST /update requests that transmit metrics in JSON format.
 func (h *GinHandler) UpdateJSON(c *gin.Context) {
 	if !strings.HasPrefix(c.GetHeader("Content-Type"), "application/json") {
 		c.AbortWithStatus(http.StatusUnsupportedMediaType)

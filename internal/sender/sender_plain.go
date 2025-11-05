@@ -15,14 +15,21 @@ import (
 )
 
 var (
-	ErrSenderNilMetric        = fmt.Errorf("nil metric passed to plain sender")
-	ErrSenderMissingValue     = fmt.Errorf("missing value for metric")
-	ErrSenderBuildURL         = fmt.Errorf("build url failed")
-	ErrSenderBuildRequest     = fmt.Errorf("build request failed")
-	ErrSenderPostMetric       = fmt.Errorf("post metric failed")
+	// ErrSenderNilMetric indicates that a nil metric was passed to the sender.
+	ErrSenderNilMetric = fmt.Errorf("nil metric passed to plain sender")
+	// ErrSenderMissingValue indicates that the metric payload lacks a value for transmission.
+	ErrSenderMissingValue = fmt.Errorf("missing value for metric")
+	// ErrSenderBuildURL indicates that building the request URL failed.
+	ErrSenderBuildURL = fmt.Errorf("build url failed")
+	// ErrSenderBuildRequest indicates that creating the HTTP request failed.
+	ErrSenderBuildRequest = fmt.Errorf("build request failed")
+	// ErrSenderPostMetric indicates that sending the HTTP request failed.
+	ErrSenderPostMetric = fmt.Errorf("post metric failed")
+	// ErrSenderUnexpectedStatus indicates that the server returned an unexpected HTTP status.
 	ErrSenderUnexpectedStatus = fmt.Errorf("unexpected status")
 )
 
+// PlainSender sends metrics using plain-text endpoints.
 type PlainSender struct {
 	baseURL string
 	port    int
@@ -31,6 +38,7 @@ type PlainSender struct {
 	signKey sign.SignKey
 }
 
+// NewPlainSender constructs a PlainSender for communicating with the server.
 func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logger, k sign.SignKey) *PlainSender {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
@@ -43,6 +51,7 @@ func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logg
 	}
 }
 
+// Send posts each metric individually to the /update plain-text endpoint.
 func (s *PlainSender) Send(metrics []*models.Metrics) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -53,6 +62,7 @@ func (s *PlainSender) Send(metrics []*models.Metrics) {
 
 }
 
+// SendBatch reuses Send for compatibility with the interface.
 func (s *PlainSender) SendBatch(metrics []*models.Metrics) {
 	s.Send(metrics)
 }

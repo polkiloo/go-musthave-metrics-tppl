@@ -9,6 +9,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
+// UpdatePlain handles POST /update/:type/:name/:value requests that encode metrics in the URL path.
 func (h *GinHandler) UpdatePlain(c *gin.Context) {
 	metricType := models.MetricType(c.Param("type"))
 	if !metricType.IsValid() {

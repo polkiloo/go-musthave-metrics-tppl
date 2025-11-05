@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// Compressor describes a content-encoding codec used for HTTP compression.
 type Compressor interface {
 	ContentEncoding() string
 	NewWriter(w io.Writer) (io.WriteCloser, error)

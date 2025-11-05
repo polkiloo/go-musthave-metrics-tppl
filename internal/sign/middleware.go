@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Middleware verifies incoming request signatures and signs outgoing responses when a key is configured.
 func Middleware(s Signer, key SignKey) gin.HandlerFunc {
 	if key == "" {
 		return func(c *gin.Context) { c.Next() }

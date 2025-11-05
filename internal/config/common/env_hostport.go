@@ -6,11 +6,13 @@ import (
 	"strconv"
 )
 
+// HostPort represents host and optional port values read from environment variables.
 type HostPort struct {
 	Host string
 	Port *int
 }
 
+// ReadHostPortEnv reads an environment variable and attempts to parse it as host:port.
 func ReadHostPortEnv(varName string) (HostPort, error) {
 	val := os.Getenv(varName)
 	if val == "" {
