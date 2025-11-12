@@ -22,7 +22,7 @@ func Example_plainEndpoints() {
 
 	store := storage.NewMemStorage()
 	svc := service.NewMetricService(store)
-	h := handler.NewGinHandler(svc)
+	h := handler.NewGinHandler(svc, handler.NewJSONMetricsPool())
 	h.RegisterUpdate(router)
 	h.RegisterGetValue(router)
 
@@ -49,7 +49,7 @@ func Example_jsonEndpoints() {
 
 	store := storage.NewMemStorage()
 	svc := service.NewMetricService(store)
-	h := handler.NewGinHandler(svc)
+	h := handler.NewGinHandler(svc, handler.NewJSONMetricsPool())
 	h.RegisterUpdate(router)
 	h.RegisterGetValue(router)
 

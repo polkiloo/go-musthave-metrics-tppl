@@ -13,9 +13,7 @@ func TestDispatcherPublishFanOut(t *testing.T) {
 	event := Event{Timestamp: 42, Metrics: []string{"A"}}
 	first := &test.FakeObserver[Event]{}
 	second := &test.FakeObserver[Event]{Err: errors.New("fail")}
-	d := NewDispatcher(first)
-	d.Register(nil) // should be ignored
-	d.Register(second)
+	d := NewDispatcher(first, nil, second)
 
 	if err := d.Publish(context.Background(), event); err == nil || !errors.Is(err, second.Err) {
 		t.Fatalf("expected joined error, got %v", err)
@@ -36,5 +34,4 @@ func TestDispatcherPublishNil(t *testing.T) {
 	if err := d.Publish(context.Background(), Event{}); err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
-	d.Register(&test.FakeObserver[Event]{})
 }

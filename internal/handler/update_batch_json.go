@@ -15,8 +15,9 @@ func (h *GinHandler) UpdatesJSON(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnsupportedMediaType)
 		return
 	}
-	batch := acquireMetricsBatch()
-	defer releaseMetricsBatch(batch)
+	pool := h.jsonMetricsPool()
+	batch := pool.AcquireBatch()
+	defer pool.ReleaseBatch(batch)
 
 	metrics := *batch
 	if err := json.NewDecoder(c.Request.Body).Decode(&metrics); err != nil {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 )
 
 // Observer receives notifications about published audit events.
@@ -22,28 +23,33 @@ type HTTPClient interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
+type fileObserver struct {
+	path string
+	open fileOpener
+	mu   sync.Mutex
+}
+
 type fileWriter interface {
 	io.WriteCloser
 }
 
-var openFile = func(name string, flag int, perm os.FileMode) (fileWriter, error) {
-	return os.OpenFile(name, flag, perm)
-}
-
-type fileObserver struct {
-	path string
-}
+type fileOpener func(string, int, os.FileMode) (fileWriter, error)
 
 // NewFileObserver writes audit events line-by-line to the configured file path.
 func NewFileObserver(path string) Observer {
-	return &fileObserver{path: path}
+	return &fileObserver{path: path, open: openAuditFile}
 }
 
 func (f *fileObserver) Notify(_ context.Context, event Event) error {
 	if f == nil || f.path == "" {
 		return errors.New("file observer path not configured")
 	}
-	fd, err := openFile(f.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if f.open == nil {
+		f.open = openAuditFile
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	fd, err := f.open(f.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("open audit file: %w", err)
 	}
@@ -56,6 +62,10 @@ func (f *fileObserver) Notify(_ context.Context, event Event) error {
 		return fmt.Errorf("write audit event: %w", err)
 	}
 	return nil
+}
+
+func openAuditFile(name string, flag int, perm os.FileMode) (fileWriter, error) {
+	return os.OpenFile(name, flag, perm)
 }
 
 type httpObserver struct {
@@ -93,7 +103,7 @@ func (h *httpObserver) Notify(ctx context.Context, event Event) error {
 		return fmt.Errorf("send audit request: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		return fmt.Errorf("audit request failed: %s", resp.Status)
 	}
 	return nil

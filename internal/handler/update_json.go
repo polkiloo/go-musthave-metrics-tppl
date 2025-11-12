@@ -16,8 +16,9 @@ func (h *GinHandler) UpdateJSON(c *gin.Context) {
 		return
 	}
 
-	in := acquireMetric()
-	defer releaseMetric(in)
+	pool := h.jsonMetricsPool()
+	in := pool.AcquireMetric()
+	defer pool.ReleaseMetric(in)
 
 	if err := json.NewDecoder(c.Request.Body).Decode(in); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)

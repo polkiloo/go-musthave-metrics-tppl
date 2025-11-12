@@ -23,7 +23,7 @@ import (
 
 func TestRegisterUpdate_JSONRoute_ContentTypeCheck(t *testing.T) {
 	fs := &test.FakeMetricService{}
-	h := &GinHandler{service: fs}
+	h := newTestGinHandler(fs)
 	r := newRouterWithHandler(h)
 
 	w := test.DoJSON(r, "/update", map[string]any{"id": "Alloc", "type": "gauge", "value": 1.0}, "text/plain")
@@ -34,7 +34,7 @@ func TestRegisterUpdate_JSONRoute_ContentTypeCheck(t *testing.T) {
 
 func TestRegisterUpdate_JSONRoute_ContentTypeCheckc(t *testing.T) {
 	fs := &test.FakeMetricService{}
-	h := &GinHandler{service: fs}
+	h := newTestGinHandler(fs)
 	r := newRouterWithHandler(h)
 
 	w := test.DoJSON(r, "/update/", map[string]any{"id": "Alloc", "type": "gauge", "value": 1.0}, "text/plain")
@@ -48,7 +48,7 @@ func TestRegisterUpdate_JSONRoute_CallsUpdateJSON(t *testing.T) {
 	m, _ := models.NewGaugeMetrics(models.GaugeNames[0], &f)
 
 	fs := &test.FakeMetricService{}
-	h := &GinHandler{service: fs}
+	h := newTestGinHandler(fs)
 	r := newRouterWithHandler(h)
 
 	w := test.DoJSON(r, "/update", m, "application/json; charset=utf-8")
@@ -65,7 +65,7 @@ func TestRegisterUpdate_JSONRoute_CallsUpdateJSON(t *testing.T) {
 
 func TestRegisterUpdate_PlainRoute_CallsUpdatePlain(t *testing.T) {
 	fs := &test.FakeMetricService{}
-	h := &GinHandler{service: fs}
+	h := newTestGinHandler(fs)
 	r := newRouterWithHandler(h)
 
 	req := httptest.NewRequest(http.MethodPost, "/update/gauge/Alloc/1.230000", bytes.NewReader(nil))
@@ -83,7 +83,7 @@ func TestRegisterUpdate_PlainRoute_CallsUpdatePlain(t *testing.T) {
 
 func TestRegisterGetValue_JSONRoute_ContentTypeCheck(t *testing.T) {
 	fs := &test.FakeMetricService{}
-	h := &GinHandler{service: fs}
+	h := newTestGinHandler(fs)
 	r := newRouterWithHandler(h)
 
 	w := test.DoJSON(r, "/value/", map[string]any{"id": "Alloc"}, "text/plain")
@@ -97,7 +97,7 @@ func TestRegisterGetValue_JSONRoute_CallsGetValueJSON(t *testing.T) {
 	m, _ := models.NewGaugeMetrics(models.GaugeNames[0], &f)
 
 	fs := &test.FakeMetricService{Metric: *m}
-	h := &GinHandler{service: fs}
+	h := newTestGinHandler(fs)
 	r := newRouterWithHandler(h)
 
 	w := test.DoJSON(r, "/value", m, "application/json")
@@ -114,7 +114,7 @@ func TestRegisterUpdate_JSONRoute_ResponseIsJSON(t *testing.T) {
 	m, _ := models.NewCounterMetrics(models.CounterNames[0], &v)
 
 	fs := &test.FakeMetricService{Metric: *m}
-	h := &GinHandler{service: fs}
+	h := newTestGinHandler(fs)
 	r := newRouterWithHandler(h)
 
 	w := test.DoJSON(r, "/update", m, "application/json")
@@ -205,7 +205,7 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 }
 
 func TestNewGinHandler_ServiceConcreteTypeIsMetricService(t *testing.T) {
-	h := NewGinHandler(service.NewMetricService(storage.NewMemStorage()))
+	h := NewGinHandler(service.NewMetricService(storage.NewMemStorage()), NewJSONMetricsPool())
 
 	got := reflect.TypeOf(h.service).String()
 	want := "*service.MetricService"

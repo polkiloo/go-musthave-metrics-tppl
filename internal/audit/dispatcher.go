@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"errors"
+	"sync"
 )
 
 // Event represents an audit entry describing processed metrics for a request.
@@ -14,6 +15,7 @@ type Event struct {
 
 // Dispatcher delivers audit events to all registered observers.
 type Dispatcher struct {
+	mu        sync.RWMutex
 	observers []Observer
 }
 
@@ -22,21 +24,16 @@ func NewDispatcher(observers ...Observer) *Dispatcher {
 	return &Dispatcher{observers: observers}
 }
 
-// Register attaches the observer to the dispatcher.
-func (d *Dispatcher) Register(o Observer) {
-	if d == nil || o == nil {
-		return
-	}
-	d.observers = append(d.observers, o)
-}
-
 // Publish forwards the event to every registered observer and joins any errors.
 func (d *Dispatcher) Publish(ctx context.Context, event Event) error {
 	if d == nil {
 		return nil
 	}
+	d.mu.RLock()
+	observers := append([]Observer(nil), d.observers...)
+	d.mu.RUnlock()
 	var errs []error
-	for _, o := range d.observers {
+	for _, o := range observers {
 		if o == nil {
 			continue
 		}

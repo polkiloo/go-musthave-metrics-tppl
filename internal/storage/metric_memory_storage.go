@@ -36,6 +36,19 @@ func (m *MemStorageT[T]) Get(name string) (T, error) {
 	return v, nil
 }
 
+// Snapshot returns a copy of the storage contents protected by the internal lock.
+func (m *MemStorageT[T]) Snapshot() map[string]T {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	res := make(map[string]T, len(m.data))
+	for k, v := range m.data {
+		res[k] = v
+	}
+
+	return res
+}
+
 // Number constrains numeric types supported by the storage.
 type Number interface {
 	~int64 | ~float64
@@ -103,34 +116,24 @@ func (m *MemStorage) SetCounter(name string, value int64) {
 
 // AllGauges returns a snapshot of all gauges.
 func (m *MemStorage) AllGauges() map[string]float64 {
-	m.gauges.mu.RLock()
-	defer m.gauges.mu.RUnlock()
-	res := make(map[string]float64, len(m.gauges.data))
-	for k, v := range m.gauges.data {
-		res[k] = v
-	}
-	return res
+	return m.gauges.Snapshot()
 }
 
 // AllCounters returns a snapshot of all counters.
 func (m *MemStorage) AllCounters() map[string]int64 {
-	m.counters.mu.RLock()
-	defer m.counters.mu.RUnlock()
-	res := make(map[string]int64, len(m.counters.data))
-	for k, v := range m.counters.data {
-		res[k] = v
-	}
-	return res
+	return m.counters.Snapshot()
 }
 
 // Snapshot returns all metrics as model instances suitable for serialisation.
 func (m *MemStorage) Snapshot() []models.Metrics {
-	metrics := make([]models.Metrics, 0, len(m.gauges.data)+len(m.counters.data))
-	gaugeValues := make([]float64, 0, len(m.gauges.data))
-	counterValues := make([]int64, 0, len(m.counters.data))
+	gauges := m.gauges.Snapshot()
+	counters := m.counters.Snapshot()
 
-	m.gauges.mu.RLock()
-	for name, value := range m.gauges.data {
+	metrics := make([]models.Metrics, 0, len(gauges)+len(counters))
+	gaugeValues := make([]float64, 0, len(gauges))
+	counterValues := make([]int64, 0, len(counters))
+
+	for name, value := range gauges {
 		gaugeValues = append(gaugeValues, value)
 		v := &gaugeValues[len(gaugeValues)-1]
 		metrics = append(metrics, models.Metrics{
@@ -139,10 +142,7 @@ func (m *MemStorage) Snapshot() []models.Metrics {
 			Value: v,
 		})
 	}
-	m.gauges.mu.RUnlock()
-
-	m.counters.mu.RLock()
-	for name, value := range m.counters.data {
+	for name, value := range counters {
 		counterValues = append(counterValues, value)
 		v := &counterValues[len(counterValues)-1]
 		metrics = append(metrics, models.Metrics{
@@ -151,7 +151,6 @@ func (m *MemStorage) Snapshot() []models.Metrics {
 			Delta: v,
 		})
 	}
-	m.counters.mu.RUnlock()
 
 	return metrics
 }

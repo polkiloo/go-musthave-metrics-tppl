@@ -45,21 +45,14 @@ func getEnvVars() (ServerEnvVars, error) {
 		}
 	}
 
-	filePath := os.Getenv(EnvFileStorageVarName)
-
-	key := os.Getenv(EnvKeyVarName)
-
-	auditFile := os.Getenv(EnvAuditFileVarName)
-	auditURL := os.Getenv(EnvAuditURLVarName)
-
 	return ServerEnvVars{
 		Host:          hp.Host,
 		Port:          hp.Port,
 		StoreInterval: interval,
-		FileStorage:   filePath,
+		FileStorage:   os.Getenv(EnvFileStorageVarName),
 		Restore:       restore,
-		SignKey:       key,
-		AuditFile:     auditFile,
-		AuditURL:      auditURL,
+		SignKey:       os.Getenv(EnvKeyVarName),
+		AuditFile:     os.Getenv(EnvAuditFileVarName),
+		AuditURL:      os.Getenv(EnvAuditURLVarName),
 	}, nil
 }

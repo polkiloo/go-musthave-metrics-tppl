@@ -43,21 +43,20 @@ func TestFileObserverSuccess(t *testing.T) {
 }
 
 func TestFileObserverErrors(t *testing.T) {
-	orig := openFile
-	t.Cleanup(func() { openFile = orig })
-
 	obs := NewFileObserver("")
 	if err := obs.Notify(context.Background(), Event{}); err == nil {
 		t.Fatalf("expected error for empty path")
 	}
 
-	openFile = func(string, int, os.FileMode) (fileWriter, error) { return nil, errors.New("open") }
 	obs = NewFileObserver("path")
+	fileObs := obs.(*fileObserver)
+
+	fileObs.open = func(string, int, os.FileMode) (fileWriter, error) { return nil, errors.New("open") }
 	if err := obs.Notify(context.Background(), Event{}); err == nil || err.Error() != "open audit file: open" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	openFile = func(string, int, os.FileMode) (fileWriter, error) {
+	fileObs.open = func(string, int, os.FileMode) (fileWriter, error) {
 		return failingWriter{err: errors.New("write")}, nil
 	}
 	if err := obs.Notify(context.Background(), Event{}); err == nil || err.Error() != "write audit event: write" {

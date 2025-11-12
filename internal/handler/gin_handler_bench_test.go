@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func setupBenchmarkServer(b *testing.B) (*httptest.Server, *http.Client) {
 
 	store := storage.NewMemStorage()
 	svc := service.NewMetricService(store)
-	handler := NewGinHandler(svc)
+	handler := NewGinHandler(svc, NewJSONMetricsPool())
 	handler.RegisterUpdate(engine)
 
 	server := httptest.NewServer(engine)
@@ -52,12 +53,15 @@ func BenchmarkGinHandlerUpdateJSONNetwork(b *testing.B) {
 		b.Fatalf("failed to marshal metric: %v", err)
 	}
 
-	url := server.URL + "/update"
+	endpoint, err := url.JoinPath(server.URL, "update")
+	if err != nil {
+		b.Fatalf("failed to build request URL: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
+		req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
 		if err != nil {
 			b.Fatalf("failed to create request: %v", err)
 		}
@@ -102,12 +106,15 @@ func BenchmarkGinHandlerUpdatesJSONNetwork(b *testing.B) {
 		b.Fatalf("failed to marshal metrics: %v", err)
 	}
 
-	url := server.URL + "/updates"
+	endpoint, err := url.JoinPath(server.URL, "updates")
+	if err != nil {
+		b.Fatalf("failed to build request URL: %v", err)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
+		req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
 		if err != nil {
 			b.Fatalf("failed to create request: %v", err)
 		}

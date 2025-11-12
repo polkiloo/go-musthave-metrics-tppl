@@ -17,11 +17,15 @@ type GinHandler struct {
 	service     service.MetricServiceInterface
 	afterUpdate func()
 	logger      logger.Logger
+	jsonPool    *jsonMetricsPool
 }
 
 // NewGinHandler constructs a GinHandler that proxies requests to the provided metric service.
-func NewGinHandler(s service.MetricServiceInterface) *GinHandler {
-	return &GinHandler{service: s}
+func NewGinHandler(s service.MetricServiceInterface, pool *jsonMetricsPool) *GinHandler {
+	if pool == nil {
+		pool = NewJSONMetricsPool()
+	}
+	return &GinHandler{service: s, jsonPool: pool}
 }
 
 // RegisterUpdate registers all update endpoints (plain and JSON) on the supplied Gin engine.
@@ -110,9 +114,19 @@ func (h *GinHandler) SetLogger(l logger.Logger) { h.logger = l }
 // Service returns the underlying MetricServiceInterface used by the handler.
 func (h *GinHandler) Service() service.MetricServiceInterface { return h.service }
 
+func (h *GinHandler) jsonMetricsPool() *jsonMetricsPool {
+	if h.jsonPool == nil {
+		h.jsonPool = NewJSONMetricsPool()
+	}
+	return h.jsonPool
+}
+
 // Module describes the fx module that provides the Gin HTTP handlers.
 var Module = fx.Module(
 	"handler",
-	fx.Provide(NewGinHandler),
+	fx.Provide(
+		NewJSONMetricsPool,
+		NewGinHandler,
+	),
 	fx.Invoke(register),
 )

@@ -10,45 +10,49 @@ const (
 	defaultBatchCapacity = 64
 )
 
-var metricPool = sync.Pool{
-	New: func() any {
-		return &models.Metrics{}
-	},
+type jsonMetricsPool struct {
+	metricPool sync.Pool
+	batchPool  sync.Pool
 }
 
-var metricsBatchPool = sync.Pool{
-	New: func() any {
+// NewJSONMetricsPool constructs a reusable pool for single metrics and batches consumed by JSON handlers.
+func NewJSONMetricsPool() *jsonMetricsPool {
+	pool := &jsonMetricsPool{}
+	pool.metricPool.New = func() any {
+		return &models.Metrics{}
+	}
+	pool.batchPool.New = func() any {
 		batch := make([]models.Metrics, 0, defaultBatchCapacity)
 		return &batch
-	},
+	}
+	return pool
 }
 
-func acquireMetric() *models.Metrics {
-	metric := metricPool.Get().(*models.Metrics)
+func (p *jsonMetricsPool) AcquireMetric() *models.Metrics {
+	metric := p.metricPool.Get().(*models.Metrics)
 	*metric = models.Metrics{}
 	return metric
 }
 
-func releaseMetric(metric *models.Metrics) {
+func (p *jsonMetricsPool) ReleaseMetric(metric *models.Metrics) {
 	if metric == nil {
 		return
 	}
 	*metric = models.Metrics{}
-	metricPool.Put(metric)
+	p.metricPool.Put(metric)
 }
 
-func acquireMetricsBatch() *[]models.Metrics {
-	batchPtr := metricsBatchPool.Get().(*[]models.Metrics)
+func (p *jsonMetricsPool) AcquireBatch() *[]models.Metrics {
+	batchPtr := p.batchPool.Get().(*[]models.Metrics)
 	batch := *batchPtr
 	if cap(batch) == 0 {
 		batch = make([]models.Metrics, 0, defaultBatchCapacity)
 	}
-	batch = batch[:0]
-	*batchPtr = batch
+	*batchPtr = batch[:0]
 	return batchPtr
 }
 
-func releaseMetricsBatch(batchPtr *[]models.Metrics) {
+func (p *jsonMetricsPool) ReleaseBatch(batchPtr *[]models.Metrics) {
 	if batchPtr == nil {
 		return
 	}
@@ -57,5 +61,5 @@ func releaseMetricsBatch(batchPtr *[]models.Metrics) {
 		batch[i] = models.Metrics{}
 	}
 	*batchPtr = batch[:0]
-	metricsBatchPool.Put(batchPtr)
+	p.batchPool.Put(batchPtr)
 }
