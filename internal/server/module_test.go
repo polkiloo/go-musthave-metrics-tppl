@@ -42,7 +42,7 @@ func TestRun_OnStart_SuccessPath_CoversGoroutine(t *testing.T) {
 	}
 
 	logger := &test.FakeLogger{}
-	hand := handler.NewGinHandler(&test.FakeMetricService{})
+	hand := handler.NewGinHandler(&test.FakeMetricService{}, handler.NewJSONMetricsPool())
 	run(lc, engine, cfg, logger, hand)
 
 	if len(lc.hooks) != 1 {
@@ -93,7 +93,7 @@ func TestRun_OnStart_FailurePath_CoversFatal(t *testing.T) {
 
 	logger := &test.FakeLogger{}
 
-	hand := handler.NewGinHandler(&test.FakeMetricService{})
+	hand := handler.NewGinHandler(&test.FakeMetricService{}, handler.NewJSONMetricsPool())
 	run(lc, engine, cfg, logger, hand)
 
 	if len(lc.hooks) != 1 {

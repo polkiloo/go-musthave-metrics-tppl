@@ -6,17 +6,21 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 )
 
+// UpdateJSON handles POST /update requests that transmit metrics in JSON format.
 func (h *GinHandler) UpdateJSON(c *gin.Context) {
 	if !strings.HasPrefix(c.GetHeader("Content-Type"), "application/json") {
 		c.AbortWithStatus(http.StatusUnsupportedMediaType)
 		return
 	}
 
-	var in models.Metrics
-	if err := json.NewDecoder(c.Request.Body).Decode(&in); err != nil {
+	pool := h.jsonMetricsPool()
+	in := pool.AcquireMetric()
+	defer pool.ReleaseMetric(in)
+
+	if err := json.NewDecoder(c.Request.Body).Decode(in); err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -25,12 +29,14 @@ func (h *GinHandler) UpdateJSON(c *gin.Context) {
 		return
 	}
 
-	err := h.service.ProcessUpdate(&in)
+	err := h.service.ProcessUpdate(in)
 
 	if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+
+	audit.AddRequestMetrics(c, in.ID)
 
 	if h.afterUpdate != nil {
 		h.afterUpdate()

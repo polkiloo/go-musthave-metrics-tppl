@@ -1,6 +1,7 @@
 package servercfg
 
 import (
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
@@ -56,6 +57,17 @@ func buildServerConfig() (server.AppConfig, error) {
 		cfg.SignKey = sign.SignKey(flagArgs.SignKey)
 	}
 
+	if envVars.AuditFile != "" {
+		cfg.AuditFile = envVars.AuditFile
+	} else if flagArgs.auditFile != "" {
+		cfg.AuditFile = flagArgs.auditFile
+	}
+
+	if envVars.AuditURL != "" {
+		cfg.AuditURL = envVars.AuditURL
+	} else if flagArgs.auditURL != "" {
+		cfg.AuditURL = flagArgs.auditURL
+	}
 	return cfg, nil
 }
 
@@ -65,5 +77,8 @@ var Module = fx.Module(
 		buildServerConfig,
 		func(c server.AppConfig) *server.AppConfig { return &c },
 		func(c server.AppConfig) sign.SignKey { return sign.SignKey(c.SignKey) },
+		func(c server.AppConfig) audit.Config {
+			return audit.Config{FilePath: c.AuditFile, Endpoint: c.AuditURL}
+		},
 	),
 )

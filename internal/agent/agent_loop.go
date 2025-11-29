@@ -10,6 +10,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sender"
 )
 
+// AgentLoopConfig groups parameters controlling the agent execution loop.
 type AgentLoopConfig struct {
 	PollInterval   time.Duration
 	ReportInterval time.Duration
@@ -17,6 +18,7 @@ type AgentLoopConfig struct {
 	RateLimit      int
 }
 
+// AgentLoopSleep collects metrics on a schedule and sends them via the provided senders.
 func AgentLoopSleep(
 	ctx context.Context,
 	collector collector.CollectorInterface,

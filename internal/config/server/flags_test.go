@@ -158,3 +158,18 @@ func TestParseFlags_Key(t *testing.T) {
 		}
 	})
 }
+
+func TestParseFlags_AuditFlags(t *testing.T) {
+	withArgs([]string{"--audit-file", "/tmp/audit.log", "--audit-url", "https://example.com/audit"}, func() {
+		got, err := parseFlags()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.auditFile != "/tmp/audit.log" {
+			t.Fatalf("audit file mismatch: %q", got.auditFile)
+		}
+		if got.auditURL != "https://example.com/audit" {
+			t.Fatalf("audit url mismatch: %q", got.auditURL)
+		}
+	})
+}

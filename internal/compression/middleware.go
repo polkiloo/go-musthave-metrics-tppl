@@ -8,17 +8,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Option configures compression middleware behaviour.
 type Option func(*settings)
 type settings struct {
 	allowedCT []string
 }
 
+// WithAllowedContentTypes restricts compression to the specified content types.
 func WithAllowedContentTypes(ct ...string) Option {
 	return func(s *settings) { s.allowedCT = append([]string(nil), ct...) }
 }
 
 var defaultCT = []string{"application/json", "text/html"}
 
+// Middleware provides transparent request decompression and response compression for Gin.
 func Middleware(cpr Compressor, opts ...Option) gin.HandlerFunc {
 	if cpr == nil {
 		panic("compression: compressor must not be nil")

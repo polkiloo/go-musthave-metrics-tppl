@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	dbcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/db"
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
@@ -32,6 +33,7 @@ func main() {
 		server.Module,
 		compression.Module,
 		sign.Module,
+		audit.Module,
 	)
 
 	run(ctx, app)

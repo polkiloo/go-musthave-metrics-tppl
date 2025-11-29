@@ -159,3 +159,20 @@ func TestGetEnvVars_Key(t *testing.T) {
 		}
 	})
 }
+
+func TestGetEnvVars_Audit(t *testing.T) {
+	withEnv(EnvAuditFileVarName, "/tmp/audit.log", func() {
+		withEnv(EnvAuditURLVarName, "https://example.com/audit", func() {
+			got, err := getEnvVars()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.AuditFile != "/tmp/audit.log" {
+				t.Fatalf("audit file mismatch: %q", got.AuditFile)
+			}
+			if got.AuditURL != "https://example.com/audit" {
+				t.Fatalf("audit url mismatch: %q", got.AuditURL)
+			}
+		})
+	})
+}

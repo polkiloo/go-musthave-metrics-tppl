@@ -2,11 +2,13 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 )
@@ -116,6 +118,34 @@ func TestUpdateJSON_AfterUpdateHook(t *testing.T) {
 	}
 	if called != 1 {
 		t.Fatalf("afterUpdate not called, got %d", called)
+	}
+}
+
+func TestUpdateJSON_MetricsStoredInContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	fs := &test.FakeMetricService{}
+	h := &GinHandler{service: fs}
+
+	value := 2.0
+	m, _ := models.NewGaugeMetrics("Alloc", &value)
+	body, err := json.Marshal(m)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/update", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	h.UpdateJSON(ctx)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	metrics := audit.GetRequestMetricsForTest(ctx)
+	if len(metrics) != 1 || metrics[0] != "Alloc" {
+		t.Fatalf("unexpected metrics: %v", metrics)
 	}
 }
 

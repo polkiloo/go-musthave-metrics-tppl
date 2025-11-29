@@ -125,7 +125,8 @@ func TestSignWriter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rec)
-	w := &signWriter{ResponseWriter: ctx.Writer}
+	w := newSignWriter(ctx.Writer)
+	t.Cleanup(func() { releaseBuffer(w.body) })
 
 	if w.Written() {
 		t.Fatalf("expected not written")

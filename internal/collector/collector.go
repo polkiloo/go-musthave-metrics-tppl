@@ -8,23 +8,27 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
+// CollectorInterface defines behaviour required from metric collectors.
 type CollectorInterface interface {
 	Collect()
 	Snapshot() []*models.Metrics
 	SetGauge(name string, value float64)
 }
 
+// Collector gathers runtime metrics and stores them in-memory.
 type Collector struct {
 	mu      sync.RWMutex
 	metrics map[string]*models.Metrics
 }
 
+// NewCollector constructs a Collector ready to gather runtime metrics.
 func NewCollector() *Collector {
 	return &Collector{
 		metrics: make(map[string]*models.Metrics),
 	}
 }
 
+// MetricGetter extracts a metric value from runtime.MemStats.
 type MetricGetter[T any] func(*runtime.MemStats) T
 
 var gaugeGetters = map[string]MetricGetter[models.Gauge]{
@@ -61,6 +65,7 @@ var counterGetters = map[string]MetricGetter[models.Counter]{
 	"PollCount": func(_ *runtime.MemStats) models.Counter { return 1 },
 }
 
+// Collect gathers the latest runtime metrics and stores them internally.
 func (c *Collector) Collect() {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
@@ -105,6 +110,7 @@ func (c *Collector) Collect() {
 	}
 }
 
+// Snapshot returns deep copies of all collected metrics.
 func (c *Collector) Snapshot() []*models.Metrics {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -116,6 +122,7 @@ func (c *Collector) Snapshot() []*models.Metrics {
 	return out
 }
 
+// SetGauge sets a specific gauge metric to the provided value.
 func (c *Collector) SetGauge(name string, value float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

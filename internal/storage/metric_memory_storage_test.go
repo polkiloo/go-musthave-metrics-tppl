@@ -166,6 +166,48 @@ func TestMemStorage_AllGaugesAndCounters(t *testing.T) {
 	}
 }
 
+func TestMemStorage_Snapshot(t *testing.T) {
+	m := NewMemStorage()
+	m.UpdateGauge("g", 2.5)
+	m.UpdateCounter("c", 7)
+
+	snapshot := m.Snapshot()
+	if len(snapshot) != 2 {
+		t.Fatalf("snapshot length = %d, want 2", len(snapshot))
+	}
+
+	values := make(map[string]float64)
+	counters := make(map[string]int64)
+	for _, metric := range snapshot {
+		switch metric.MType {
+		case models.GaugeType:
+			if metric.Value == nil {
+				t.Fatalf("gauge %q has nil value", metric.ID)
+			}
+			values[metric.ID] = *metric.Value
+			*metric.Value = 99.0
+		case models.CounterType:
+			if metric.Delta == nil {
+				t.Fatalf("counter %q has nil delta", metric.ID)
+			}
+			counters[metric.ID] = *metric.Delta
+			*metric.Delta = 42
+		}
+	}
+
+	if values["g"] != 2.5 {
+		t.Fatalf("snapshot gauge value = %v, want 2.5", values["g"])
+	}
+	if counters["c"] != 7 {
+		t.Fatalf("snapshot counter value = %v, want 7", counters["c"])
+	}
+
+	gv, _ := m.GetGauge("g")
+	cv, _ := m.GetCounter("c")
+	if gv != 2.5 || cv != 7 {
+		t.Fatalf("mutating snapshot should not affect storage, got gauge=%v counter=%v", gv, cv)
+	}
+}
 func TestMemStorage_SetCounter(t *testing.T) {
 	m := NewMemStorage()
 	m.UpdateCounter("c", 5)

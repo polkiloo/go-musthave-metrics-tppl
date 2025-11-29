@@ -13,6 +13,8 @@ const (
 	EnvFileStorageVarName   = "FILE_STORAGE_PATH"
 	EnvRestoreVarName       = "RESTORE"
 	EnvKeyVarName           = "KEY"
+	EnvAuditFileVarName     = "AUDIT_FILE"
+	EnvAuditURLVarName      = "AUDIT_URL"
 )
 
 type ServerEnvVars struct {
@@ -22,6 +24,8 @@ type ServerEnvVars struct {
 	FileStorage   string
 	Restore       *bool
 	SignKey       string
+	AuditFile     string
+	AuditURL      string
 }
 
 func getEnvVars() (ServerEnvVars, error) {
@@ -41,9 +45,14 @@ func getEnvVars() (ServerEnvVars, error) {
 		}
 	}
 
-	filePath := os.Getenv(EnvFileStorageVarName)
-
-	key := os.Getenv(EnvKeyVarName)
-
-	return ServerEnvVars{Host: hp.Host, Port: hp.Port, StoreInterval: interval, FileStorage: filePath, Restore: restore, SignKey: key}, nil
+	return ServerEnvVars{
+		Host:          hp.Host,
+		Port:          hp.Port,
+		StoreInterval: interval,
+		FileStorage:   os.Getenv(EnvFileStorageVarName),
+		Restore:       restore,
+		SignKey:       os.Getenv(EnvKeyVarName),
+		AuditFile:     os.Getenv(EnvAuditFileVarName),
+		AuditURL:      os.Getenv(EnvAuditURLVarName),
+	}, nil
 }

@@ -10,9 +10,11 @@ import (
 )
 
 var (
+	// ErrMetricNotFound indicates that the requested metric does not exist in the storage backend.
 	ErrMetricNotFound = fmt.Errorf("metric not found")
 )
 
+// MetricServiceInterface describes operations supported by metric services.
 type MetricServiceInterface interface {
 	ProcessUpdate(*models.Metrics) error
 	ProcessUpdates([]models.Metrics) error
@@ -21,14 +23,17 @@ type MetricServiceInterface interface {
 	LoadFile(path string) error
 }
 
+// MetricService implements MetricServiceInterface using a MetricStorage backend.
 type MetricService struct {
 	store storage.MetricStorage
 }
 
+// NewMetricService creates a new MetricService for the provided storage implementation.
 func NewMetricService(store storage.MetricStorage) *MetricService {
 	return &MetricService{store: store}
 }
 
+// ProcessUpdate applies a single metric update to the storage.
 func (s *MetricService) ProcessUpdate(m *models.Metrics) error {
 	if m == nil {
 		return ErrMetricNotFound
@@ -49,6 +54,7 @@ type batchUpdater interface {
 
 var processUpdateFn = (*MetricService).ProcessUpdate
 
+// ProcessUpdates applies a batch of metric updates, using storage-level batching when available.
 func (s *MetricService) ProcessUpdates(metrics []models.Metrics) error {
 	if len(metrics) == 0 {
 		return nil
@@ -64,6 +70,7 @@ func (s *MetricService) ProcessUpdates(metrics []models.Metrics) error {
 	return nil
 }
 
+// ProcessGetValue fetches the current value of the requested metric.
 func (s *MetricService) ProcessGetValue(metricName string, metricType models.MetricType) (*models.Metrics, error) {
 	var m *models.Metrics
 
@@ -101,28 +108,14 @@ func (s *MetricService) ProcessGetValue(metricName string, metricType models.Met
 	return m, nil
 }
 
+// SaveFile persists all metrics to the specified file when the storage supports snapshots.
 func (s *MetricService) SaveFile(path string) error {
 	if path == "" {
 		return nil
 	}
 	metrics := make([]models.Metrics, 0)
 	if ms, ok := s.store.(*storage.MemStorage); ok {
-		for name, v := range ms.AllGauges() {
-			val := v
-			m, err := models.NewGaugeMetrics(name, &val)
-			if err != nil {
-				continue
-			}
-			metrics = append(metrics, *m)
-		}
-		for name, v := range ms.AllCounters() {
-			val := v
-			m, err := models.NewCounterMetrics(name, &val)
-			if err != nil {
-				continue
-			}
-			metrics = append(metrics, *m)
-		}
+		metrics = append(metrics, ms.Snapshot()...)
 	}
 	b, err := json.Marshal(metrics)
 	if err != nil {
@@ -131,6 +124,7 @@ func (s *MetricService) SaveFile(path string) error {
 	return os.WriteFile(path, b, 0o666)
 }
 
+// LoadFile restores metrics from the specified file when the storage supports snapshots.
 func (s *MetricService) LoadFile(path string) error {
 	if path == "" {
 		return nil

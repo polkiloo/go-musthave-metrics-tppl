@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// DefaultDelays defines the retry backoff durations used when none are provided.
 var DefaultDelays = []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
 
 // Do executes fn and retries it according to the provided delays while canRetry returns true.

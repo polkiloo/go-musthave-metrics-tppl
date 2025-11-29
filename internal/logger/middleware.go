@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Middleware logs basic request and response information using the provided logger.
 func Middleware(l Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

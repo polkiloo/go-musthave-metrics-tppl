@@ -12,6 +12,7 @@ import (
 	"go.uber.org/fx"
 )
 
+// AppConfig describes configuration for the HTTP server application.
 type AppConfig struct {
 	Host            string
 	Port            int
@@ -19,16 +20,24 @@ type AppConfig struct {
 	FileStoragePath string
 	Restore         bool
 	SignKey         sign.SignKey
+	AuditFile       string
+	AuditURL        string
 }
 
 const (
-	DefaultAppHost         = "localhost"
-	DefaultAppPort         = 8080
-	DefaultStoreInterval   = 300
+	// DefaultAppHost is the hostname used when no host is provided.
+	DefaultAppHost = "localhost"
+	// DefaultAppPort is the default port the server listens on.
+	DefaultAppPort = 8080
+	// DefaultStoreInterval controls how often metrics are flushed to disk.
+	DefaultStoreInterval = 300
+	// DefaultFileStoragePath is the default path for the metrics snapshot file.
 	DefaultFileStoragePath = "/tmp/metrics-db.json"
-	DefaultRestore         = true
+	// DefaultRestore indicates whether the service loads state on start by default.
+	DefaultRestore = true
 )
 
+// DefaultAppConfig provides baseline server configuration values.
 var DefaultAppConfig = AppConfig{
 	Host:            DefaultAppHost,
 	Port:            DefaultAppPort,
@@ -100,6 +109,7 @@ func run(lc fx.Lifecycle, r *gin.Engine, cfg *AppConfig, l logger.Logger, h *han
 	})
 }
 
+// Module wires the HTTP server lifecycle hooks into the fx application.
 var Module = fx.Module(
 	"server",
 	fx.Provide(newEngine),

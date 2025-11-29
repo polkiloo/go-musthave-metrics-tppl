@@ -7,10 +7,13 @@ import (
 )
 
 var (
+	// ErrInvalidAddress indicates that the address flag could not be parsed.
 	ErrInvalidAddress = fmt.Errorf("invalid address format")
-	ErrInvalidPort    = fmt.Errorf("invalid port")
+	// ErrInvalidPort indicates that the port portion of the flag is invalid.
+	ErrInvalidPort = fmt.Errorf("invalid port")
 )
 
+// AddressFlagValue stores the parsed host and optional port from a CLI flag.
 type AddressFlagValue struct {
 	Host string
 	Port *int
@@ -18,6 +21,7 @@ type AddressFlagValue struct {
 
 var _ FlagValue = (*AddressFlagValue)(nil)
 
+// ParseAddressFlag parses host:port values provided to command-line flags.
 func ParseAddressFlag(value string, present bool) (AddressFlagValue, error) {
 	if !present {
 		return AddressFlagValue{}, nil

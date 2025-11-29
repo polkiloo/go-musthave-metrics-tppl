@@ -4,21 +4,56 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	defaultBufferSize = 4 << 10   // 4KiB
+	maxPooledBuffer   = 256 << 10 // 256KiB
+)
+
+var bufferPool = sync.Pool{
+	New: func() any {
+		return bytes.NewBuffer(make([]byte, 0, defaultBufferSize))
+	},
+}
+
+func acquireBuffer() *bytes.Buffer {
+	buf := bufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	return buf
+}
+
+func releaseBuffer(buf *bytes.Buffer) {
+	if buf == nil {
+		return
+	}
+	if cap(buf.Bytes()) > maxPooledBuffer {
+		return
+	}
+	buf.Reset()
+	bufferPool.Put(buf)
+}
+
+// Middleware verifies incoming request signatures and signs outgoing responses when a key is configured.
 func Middleware(s Signer, key SignKey) gin.HandlerFunc {
 	if key == "" {
 		return func(c *gin.Context) { c.Next() }
 	}
 	return func(c *gin.Context) {
-		body, err := io.ReadAll(c.Request.Body)
-		if err != nil {
+		reqBuf := acquireBuffer()
+		defer releaseBuffer(reqBuf)
+
+		if _, err := reqBuf.ReadFrom(c.Request.Body); err != nil {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
-		c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+		body := reqBuf.Bytes()
+		c.Request.Body = io.NopCloser(bytes.NewReader(body))
+		c.Request.ContentLength = int64(len(body))
+
 		if sig := c.GetHeader("HashSHA256"); sig != "" {
 			if !s.Verify(body, key, sig) {
 				c.AbortWithStatus(http.StatusBadRequest)
@@ -27,12 +62,13 @@ func Middleware(s Signer, key SignKey) gin.HandlerFunc {
 		}
 
 		orig := c.Writer
-		hw := &signWriter{ResponseWriter: orig}
+		hw := newSignWriter(orig)
 		c.Writer = hw
 
 		c.Next()
 
-		sig := s.Sign(hw.body.Bytes(), key)
+		respBody := hw.body.Bytes()
+		sig := s.Sign(respBody, key)
 		orig.Header().Set("HashSHA256", sig)
 
 		status := hw.status
@@ -40,17 +76,22 @@ func Middleware(s Signer, key SignKey) gin.HandlerFunc {
 			status = http.StatusOK
 		}
 		orig.WriteHeader(status)
-		if hw.body.Len() > 0 {
-			_, _ = orig.Write(hw.body.Bytes())
+		if len(respBody) > 0 {
+			_, _ = orig.Write(respBody)
 		}
+		releaseBuffer(hw.body)
 		c.Writer = orig
 	}
 }
 
 type signWriter struct {
 	gin.ResponseWriter
-	body   bytes.Buffer
+	body   *bytes.Buffer
 	status int
+}
+
+func newSignWriter(w gin.ResponseWriter) *signWriter {
+	return &signWriter{ResponseWriter: w, body: acquireBuffer()}
 }
 
 func (w *signWriter) Write(b []byte) (int, error) {
