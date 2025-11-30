@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os/signal"
 	"syscall"
 
@@ -36,5 +37,7 @@ func main() {
 		audit.Module,
 	)
 
-	run(ctx, app)
+	if err := run(ctx, app); err != nil {
+		log.Fatal(err)
+	}
 }
