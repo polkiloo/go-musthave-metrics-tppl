@@ -19,7 +19,8 @@ GOMODCACHE_DIR   ?= $(CACHE_PREFIX)/mod
 GOBUILDCACHE_DIR ?= $(CACHE_PREFIX)/build
 
 .PHONY: race-docker ensure-dirs coverage ensure-profile-dir \
-        profile-network profile-collector profile-storage
+        profile-network profile-collector profile-storage lint \
+		reset-gen
 
 race-docker: ensure-dirs
 	docker pull $(GOIMAGE)
@@ -111,3 +112,11 @@ profile-storage: ensure-profile-dir
 		trap - INT TERM EXIT; \
 		cleanup() { :; }; \
 		cleanup
+
+lint:
+	@set -eu; \
+		GOFLAGS='' go vet ./...; \
+		GOFLAGS='' go run ./cmd/linter ./...
+
+reset-gen:
+        @GOFLAGS='' go run ./cmd/reset -dir .
