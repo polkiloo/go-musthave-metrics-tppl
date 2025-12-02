@@ -15,6 +15,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.38.0
 	go.uber.org/fx v1.24.0
 	go.uber.org/zap v1.26.0
+	golang.org/x/tools v0.35.0
 )
 
 require (
@@ -95,6 +96,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
+	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
