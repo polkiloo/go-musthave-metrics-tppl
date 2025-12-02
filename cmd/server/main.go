@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/buildinfo"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
 	dbcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/db"
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
@@ -19,7 +21,14 @@ import (
 	"go.uber.org/fx"
 )
 
+var buildVersion = buildinfo.InfoData().Version
+var buildDate = buildinfo.InfoData().Date
+var buildCommit = buildinfo.InfoData().Commit
+
 func main() {
+
+	buildinfo.Print(os.Stdout, buildinfo.Info{Version: buildVersion, Date: buildDate, Commit: buildCommit})
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

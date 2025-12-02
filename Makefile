@@ -17,10 +17,11 @@ SKIP_HEY                ?= 0
 CACHE_PREFIX     ?= $(HOME)/.cache/go-$(PLATFORM)
 GOMODCACHE_DIR   ?= $(CACHE_PREFIX)/mod
 GOBUILDCACHE_DIR ?= $(CACHE_PREFIX)/build
+BIN_DIR 	     ?= bin
 
 .PHONY: race-docker ensure-dirs coverage ensure-profile-dir \
         profile-network profile-collector profile-storage lint \
-		reset-gen
+		reset-gen generate build-agent build-server
 
 race-docker: ensure-dirs
 	docker pull $(GOIMAGE)
@@ -38,7 +39,7 @@ race-docker: ensure-dirs
 ensure-dirs:
 	@mkdir -p "$(GOMODCACHE_DIR)" "$(GOBUILDCACHE_DIR)"
 	
-coverage:
+coverage: generate
 	@TMP=$$(mktemp); \
 	if go test -coverprofile=coverage.out ./... >$$TMP; then \
 		go tool cover -func=coverage.out | awk '/^total:/ {print $$3}'; \
@@ -50,6 +51,17 @@ coverage:
 	RM_FILES="$$TMP coverage.out"; \
 	rm -f $$RM_FILES; \
 	exit $$STATUS
+
+generate:
+	@GOFLAGS='' go generate ./internal/buildinfo
+
+build-agent: generate
+	@mkdir -p "$(BIN_DIR)"
+	@GOFLAGS='' go build -o "$(BIN_DIR)/agent" ./cmd/agent
+
+build-server: generate
+	@mkdir -p "$(BIN_DIR)"
+	@GOFLAGS='' go build -o "$(BIN_DIR)/server" ./cmd/server
 
 ensure-profile-dir:
 	@mkdir -p "$(PROFILE_DIR)"
