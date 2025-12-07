@@ -29,7 +29,7 @@ func main() {
 
 	buildinfo.Print(os.Stdout, buildinfo.Info{Version: buildVersion, Date: buildDate, Commit: buildCommit})
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
 	app := fx.New(
@@ -47,6 +47,6 @@ func main() {
 	)
 
 	if err := run(ctx, app); err != nil {
-		log.Fatal(err)
+		log.Printf("server stopped with error: %v", err)
 	}
 }
