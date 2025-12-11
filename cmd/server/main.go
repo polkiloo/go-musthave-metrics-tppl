@@ -44,6 +44,7 @@ func main() {
 		compression.Module,
 		sign.Module,
 		audit.Module,
+		server.ModuleCrypto,
 	)
 
 	if err := run(ctx, app); err != nil {

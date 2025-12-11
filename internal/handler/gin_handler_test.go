@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/cryptoutil"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
@@ -186,10 +187,11 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 		C     compression.Compressor
 		S     sign.Signer
 		K     sign.SignKey
-		A     audit.Publisher `optional:"true"`
-		Clock audit.Clock     `optional:"true"`
-		Pool  db.Pool         `optional:"true"`
-	}{R: r, H: h, L: l, C: c, S: sign.NewSignerSHA256(), K: ""})
+		A     audit.Publisher      `optional:"true"`
+		Clock audit.Clock          `optional:"true"`
+		Pool  db.Pool              `optional:"true"`
+		D     cryptoutil.Decryptor `optional:"true"`
+	}{R: r, H: h, L: l, C: c, S: sign.NewSignerSHA256(), K: "", D: nil})
 
 	if len(r.Handlers) == 0 {
 		t.Fatalf("expected global middleware to be added")

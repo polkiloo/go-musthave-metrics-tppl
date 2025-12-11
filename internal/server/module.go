@@ -22,6 +22,7 @@ type AppConfig struct {
 	SignKey         sign.SignKey
 	AuditFile       string
 	AuditURL        string
+	CryptoKeyPath   string
 }
 
 const (
@@ -35,6 +36,8 @@ const (
 	DefaultFileStoragePath = "/tmp/metrics-db.json"
 	// DefaultRestore indicates whether the service loads state on start by default.
 	DefaultRestore = true
+	// DefaultCryptoKeyPath is the default path for key used for encryption metrics.
+	DefaultCryptoKeyPath = ""
 )
 
 // DefaultAppConfig provides baseline server configuration values.

@@ -17,6 +17,7 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		ReportInterval: agent.DefaultAppReportInterval,
 		LoopIterations: agent.DefaultLoopIterations,
 		RateLimit:      agent.DefaultRateLimit,
+		CryptoKeyPath:  agent.DefaultCryptoKeyPath,
 	}
 	cfg := defaultAppConfig
 
@@ -59,6 +60,11 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		cfg.RateLimit = *flagArgs.RateLimit
 	}
 
+	if envVars.CryptoKeyPath != nil {
+		cfg.CryptoKeyPath = *envVars.CryptoKeyPath
+	} else if flagArgs.CryptoKey != "" {
+		cfg.CryptoKeyPath = flagArgs.CryptoKey
+	}
 	return cfg, nil
 }
 
