@@ -15,6 +15,7 @@ var defaultAppConfig = agent.AppConfig{
 	ReportInterval: agent.DefaultAppReportInterval,
 	LoopIterations: agent.DefaultLoopIterations,
 	RateLimit:      agent.DefaultRateLimit,
+	CryptoKeyPath:  agent.DefaultCryptoKeyPath,
 }
 
 func TestBuildAgentConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
@@ -136,10 +137,11 @@ func TestBuildAgentConfig_EnvBeatsFlags_ForEachField(t *testing.T) {
 
 func TestBuildAgentConfig_MixedPerField_EnvPortFlagsHost(t *testing.T) {
 	withEnvMap(map[string]string{
-		EnvAddressVarName:   ":7070",
-		EnvRateLimitVarName: "",
+		EnvAddressVarName:       ":7070",
+		EnvRateLimitVarName:     "",
+		EnvCryptoKeyPathVarName: "",
 	}, func() {
-		withArgs([]string{"-a", "flag-host:9999", "-l", "8"}, func() {
+		withArgs([]string{"-a", "flag-host:9999", "-l", "8", "-crypto-key", "flag-public.pem"}, func() {
 			got, err := buildAgentConfig()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -152,6 +154,29 @@ func TestBuildAgentConfig_MixedPerField_EnvPortFlagsHost(t *testing.T) {
 			}
 			if got.RateLimit != 8 {
 				t.Fatalf("want ratelimit from flags 8, got %d", got.RateLimit)
+			}
+			if got.CryptoKeyPath != "flag-public.pem" {
+				t.Fatalf("want crypto key from flags 'flag-public.pem', got %q", got.CryptoKeyPath)
+			}
+		})
+	})
+}
+
+func TestBuildAgentConfig_DefaultCryptoKeyEmpty(t *testing.T) {
+	withEnvMap(map[string]string{
+		EnvAddressVarName:        "",
+		EnvReportIntervalVarName: "",
+		EnvPollIntervalVarName:   "",
+		EnvRateLimitVarName:      "",
+		EnvCryptoKeyPathVarName:  "",
+	}, func() {
+		withArgs(nil, func() {
+			got, err := buildAgentConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.CryptoKeyPath != "" {
+				t.Fatalf("default crypto key must be empty, got %q", got.CryptoKeyPath)
 			}
 		})
 	})

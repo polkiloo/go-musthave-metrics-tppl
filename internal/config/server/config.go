@@ -14,6 +14,7 @@ func buildServerConfig() (server.AppConfig, error) {
 		StoreInterval:   server.DefaultStoreInterval,
 		FileStoragePath: server.DefaultFileStoragePath,
 		Restore:         server.DefaultRestore,
+		CryptoKeyPath:   server.DefaultCryptoKeyPath,
 	}
 
 	cfg := defaultAppConfig
@@ -68,6 +69,13 @@ func buildServerConfig() (server.AppConfig, error) {
 	} else if flagArgs.auditURL != "" {
 		cfg.AuditURL = flagArgs.auditURL
 	}
+
+	if envVars.CryptoKey != "" {
+		cfg.CryptoKeyPath = envVars.CryptoKey
+	} else if flagArgs.CryptoKeyPath != "" {
+		cfg.CryptoKeyPath = flagArgs.CryptoKeyPath
+	}
+
 	return cfg, nil
 }
 

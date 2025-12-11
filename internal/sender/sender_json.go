@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/cryptoutil"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/retrier"
@@ -38,10 +39,11 @@ type JSONSender struct {
 	log     logger.Logger
 	comp    compression.Compressor
 	signKey sign.SignKey
+	enc     cryptoutil.Encryptor
 }
 
 // NewJSONSender constructs a JSONSender for communicating with the server.
-func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logger, c compression.Compressor, k sign.SignKey) *JSONSender {
+func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logger, c compression.Compressor, k sign.SignKey, e cryptoutil.Encryptor) *JSONSender {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
@@ -51,6 +53,7 @@ func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logge
 		log:     l,
 		comp:    c,
 		signKey: k,
+		enc:     e,
 	}
 }
 
@@ -167,9 +170,24 @@ func (s *JSONSender) encodeBody(raw []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func (s *JSONSender) encryptBody(body []byte) ([]byte, string, error) {
+	if s.enc == nil {
+		return body, "", nil
+	}
+	ciphertext, encryptedKey, err := s.enc.Encrypt(body)
+	if err != nil {
+		return nil, "", fmt.Errorf("encrypt body: %w", err)
+	}
+	return ciphertext, encryptedKey, nil
+}
+
 func (s *JSONSender) buildRequest(ctx context.Context, body []byte) (*http.Request, error) {
 	u := s.baseURL + "/update"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	cipherBody, encryptedKey, err := s.encryptBody(body)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrJSONSenderEncodeBody, err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(cipherBody))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrJSONSenderBuildRequest, err)
 	}
@@ -178,6 +196,9 @@ func (s *JSONSender) buildRequest(ctx context.Context, body []byte) (*http.Reque
 		enc := s.comp.ContentEncoding()
 		req.Header.Set("Content-Encoding", enc)
 		req.Header.Set("Accept-Encoding", enc)
+	}
+	if encryptedKey != "" {
+		req.Header.Set(cryptoutil.CryptoKeyHeader, encryptedKey)
 	}
 	if s.signKey != "" {
 		req.Header.Set("HashSHA256", sign.NewSignerSHA256().Sign(body, s.signKey))
@@ -206,7 +227,11 @@ func (s *JSONSender) marshalMetrics(m []*models.Metrics) ([]byte, error) {
 
 func (s *JSONSender) buildBatchRequest(ctx context.Context, body []byte) (*http.Request, error) {
 	u := s.baseURL + "/updates"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	cipherBody, encryptedKey, err := s.encryptBody(body)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrJSONSenderEncodeBody, err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(cipherBody))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrJSONSenderBuildRequest, err)
 	}
@@ -216,6 +241,9 @@ func (s *JSONSender) buildBatchRequest(ctx context.Context, body []byte) (*http.
 		req.Header.Set("Content-Encoding", enc)
 		req.Header.Set("Accept-Encoding", enc)
 	}
+	if encryptedKey != "" {
+		req.Header.Set(cryptoutil.CryptoKeyHeader, encryptedKey)
+	}
 	if s.signKey != "" {
 		req.Header.Set("HashSHA256", sign.NewSignerSHA256().Sign(body, s.signKey))
 	}
@@ -223,4 +251,4 @@ func (s *JSONSender) buildBatchRequest(ctx context.Context, body []byte) (*http.
 
 }
 
-var _ SenderInterface = NewJSONSender("", 0, nil, nil, nil, "")
+var _ SenderInterface = NewJSONSender("", 0, nil, nil, nil, "", nil)

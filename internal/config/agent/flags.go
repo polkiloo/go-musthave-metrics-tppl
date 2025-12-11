@@ -17,6 +17,7 @@ type AgentFlags struct {
 	PollIntervalSec   *int
 	SignKey           string
 	RateLimit         *int
+	CryptoKey         string
 }
 
 var (
@@ -27,6 +28,7 @@ type ReportSecondsFlagValue struct{ Sec *int }
 type PollSecondsFlagValue struct{ Sec *int }
 type SignKeyFlagValue struct{ SignKey string }
 type RateLimitFlagValue struct{ Rate *int }
+type CryptoKeyFlagValue struct{ Path string }
 
 func ParseReportSecondsFlag(value string, present bool) (ReportSecondsFlagValue, error) {
 	if !present {
@@ -68,6 +70,13 @@ func ParseRateLimitFlag(value string, present bool) (RateLimitFlagValue, error) 
 	return RateLimitFlagValue{Rate: &n}, nil
 }
 
+func ParseCryptoKeyFlag(value string, present bool) (CryptoKeyFlagValue, error) {
+	if !present {
+		return CryptoKeyFlagValue{}, nil
+	}
+	return CryptoKeyFlagValue{Path: value}, nil
+}
+
 func flagsValueMapper(dst *AgentFlags, v commoncfg.FlagValue) error {
 	switch t := v.(type) {
 	case nil:
@@ -98,6 +107,9 @@ func flagsValueMapper(dst *AgentFlags, v commoncfg.FlagValue) error {
 			dst.RateLimit = t.Rate
 		}
 		return nil
+	case CryptoKeyFlagValue:
+		dst.CryptoKey = t.Path
+		return nil
 	default:
 		return nil
 	}
@@ -115,6 +127,7 @@ func parseFlags() (AgentFlags, error) {
 	fs.String("p", "", "pollInterv1al in seconds (default 2)")
 	fs.String("k", "", "key for sign(default empty, no signing)")
 	fs.String("l", "", "rate limit (default 1)")
+	fs.String("crypto-key", "", "path to public key for encryption")
 
 	return commoncfg.
 		NewDispatcher[AgentFlags](fs, flagsValueMapper).
@@ -123,5 +136,6 @@ func parseFlags() (AgentFlags, error) {
 		Handle("p", commoncfg.Lift(ParsePollSecondsFlag)).
 		Handle("k", commoncfg.Lift(ParseSignKeyFlag)).
 		Handle("l", commoncfg.Lift(ParseRateLimitFlag)).
+		Handle("crypto-key", commoncfg.Lift(ParseCryptoKeyFlag)).
 		Parse(os.Args[1:])
 }

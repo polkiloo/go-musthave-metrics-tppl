@@ -26,6 +26,7 @@ type ServerEnvVars struct {
 	SignKey       string
 	AuditFile     string
 	AuditURL      string
+	CryptoKey     string
 }
 
 func getEnvVars() (ServerEnvVars, error) {

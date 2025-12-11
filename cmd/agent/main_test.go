@@ -24,6 +24,7 @@ func TestMain_WiringIsValid(t *testing.T) {
 		agent.ModuleAgent,
 		agent.ModuleLoopConfig,
 		compression.Module,
+		agent.ModuleEncryption,
 		fx.NopLogger,
 	)
 	if err != nil {

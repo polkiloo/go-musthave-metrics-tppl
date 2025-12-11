@@ -6,6 +6,7 @@ import (
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/cryptoutil"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
@@ -91,12 +92,14 @@ func register(p struct {
 	C     compression.Compressor
 	S     sign.Signer
 	K     sign.SignKey
-	A     audit.Publisher `optional:"true"`
-	Clock audit.Clock     `optional:"true"`
-	Pool  db.Pool         `optional:"true"`
+	A     audit.Publisher      `optional:"true"`
+	Clock audit.Clock          `optional:"true"`
+	Pool  db.Pool              `optional:"true"`
+	D     cryptoutil.Decryptor `optional:"true"`
 }) {
 	p.H.SetLogger(p.L)
 	p.R.Use(logger.Middleware(p.L))
+	p.R.Use(cryptoutil.Middleware(p.D))
 	p.R.Use(sign.Middleware(p.S, p.K))
 	p.R.Use(compression.Middleware(p.C))
 	if p.A != nil {
