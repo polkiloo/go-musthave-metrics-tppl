@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/test"
 )
 
 // stubReader allows controlling successful reads before returning an error.
@@ -448,7 +449,8 @@ func TestMiddleware(t *testing.T) {
 
 	t.Run("decrypt error", func(t *testing.T) {
 		router := gin.New()
-		router.POST("/", Middleware(fakeDecryptor{err: errors.New("boom")}))
+		dec := &test.FakeDecryptor{Err: errors.New("boom")}
+		router.POST("/", Middleware(dec))
 
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("data"))
 		req.Header.Set(CryptoKeyHeader, "key")
@@ -456,6 +458,24 @@ func TestMiddleware(t *testing.T) {
 		router.ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("body too large", func(t *testing.T) {
+		router := gin.New()
+		called := false
+		router.POST("/", Middleware(&test.FakeDecryptor{Plaintext: []byte("ignored")}))
+
+		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bytes.Repeat([]byte("a"), maxEncryptedBodySize+1)))
+		req.Header.Set(CryptoKeyHeader, "key")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusRequestEntityTooLarge {
+			t.Fatalf("expected 413, got %d", rec.Code)
+		}
+		if called {
+			t.Fatal("decryptor should not be called for oversized body")
 		}
 	})
 

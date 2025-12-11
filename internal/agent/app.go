@@ -56,7 +56,17 @@ func RunAgent(
 			go AgentLoopSleep(ctx, collector, senders, cfg)
 			return nil
 		},
-		OnStop: func(context.Context) error {
+		OnStop: func(stopCtx context.Context) error {
+			flushTimeout := cfg.ReportInterval
+			if flushTimeout <= 0 || flushTimeout > 2*time.Second {
+				flushTimeout = 2 * time.Second
+			}
+
+			flushCtx, cancel := context.WithTimeout(stopCtx, flushTimeout)
+			defer cancel()
+
+			metrics := collector.Snapshot()
+			sendMetrics(flushCtx, senders, metrics, cfg.RateLimit)
 			return nil
 		},
 	})

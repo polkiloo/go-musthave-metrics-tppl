@@ -1,6 +1,8 @@
 package sender
 
 import (
+	"context"
+
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
 )
 
@@ -8,4 +10,10 @@ import (
 type SenderInterface interface {
 	Send(metrics []*models.Metrics)
 	SendBatch(metrics []*models.Metrics)
+}
+
+// ContextualSender extends SenderInterface with context-aware sending.
+type ContextualSender interface {
+	SenderInterface
+	SendWithContext(ctx context.Context, metrics []*models.Metrics)
 }

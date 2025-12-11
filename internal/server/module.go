@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -54,11 +56,22 @@ func newEngine() *gin.Engine {
 }
 
 var (
-	engineRunner = func(r *gin.Engine, addr string) error { return r.Run(addr) }
+	serverFactory = func(addr string, handler http.Handler) *http.Server {
+		return &http.Server{Addr: addr, Handler: handler}
+	}
+	serverRunner = func(srv *http.Server) error {
+		return srv.ListenAndServe()
+	}
+	serverShutdown = func(ctx context.Context, srv *http.Server) error {
+		return srv.Shutdown(ctx)
+	}
 )
 
 func run(lc fx.Lifecycle, r *gin.Engine, cfg *AppConfig, l logger.Logger, h *handler.GinHandler) {
-	var stopSaver chan struct{}
+	var (
+		stopSaver chan struct{}
+		srv       *http.Server
+	)
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			if cfg.Restore {
@@ -92,20 +105,33 @@ func run(lc fx.Lifecycle, r *gin.Engine, cfg *AppConfig, l logger.Logger, h *han
 			}
 			go func() {
 				addr := cfg.Host + ":" + strconv.Itoa(cfg.Port)
+				srv = serverFactory(addr, r)
+
 				l.WriteInfo("server listening", "addr", "http://"+addr)
 
-				if err := engineRunner(r, addr); err != nil {
+				if err := serverRunner(srv); err != nil && !errors.Is(err, http.ErrServerClosed) {
 					l.WriteError("server failed", "error", err)
 				}
 			}()
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			if cfg.StoreInterval > 0 {
-				close(stopSaver)
-				if err := h.Service().SaveFile(cfg.FileStoragePath); err != nil {
-					l.WriteError("save failed", "error", err)
+			if srv != nil {
+				shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				defer cancel()
+
+				if err := serverShutdown(shutdownCtx, srv); err != nil &&
+					!errors.Is(err, context.Canceled) && !errors.Is(err, http.ErrServerClosed) {
+					l.WriteError("server shutdown failed", "error", err)
 				}
+			}
+			if cfg.StoreInterval > 0 {
+				if stopSaver != nil {
+					close(stopSaver)
+				}
+			}
+			if err := h.Service().SaveFile(cfg.FileStoragePath); err != nil {
+				l.WriteError("save failed", "error", err)
 			}
 			return l.Sync()
 		},

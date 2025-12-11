@@ -53,13 +53,19 @@ func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logg
 
 // Send posts each metric individually to the /update plain-text endpoint.
 func (s *PlainSender) Send(metrics []*models.Metrics) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	s.SendWithContext(context.Background(), metrics)
+}
+
+func (s *PlainSender) SendWithContext(ctx context.Context, metrics []*models.Metrics) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	sendCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	for _, val := range metrics {
-		s.postMetric(ctx, val)
+		s.postMetric(sendCtx, val)
 	}
-
 }
 
 // SendBatch reuses Send for compatibility with the interface.

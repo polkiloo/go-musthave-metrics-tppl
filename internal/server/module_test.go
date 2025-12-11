@@ -35,11 +35,12 @@ func TestRun_OnStart_SuccessPath_CoversGoroutine(t *testing.T) {
 
 	var gotAddr string
 
-	engineRunner = func(r *gin.Engine, addr string) error {
+	serverRunner = func(srv *http.Server) error {
 		defer wg.Done()
-		gotAddr = addr
+		gotAddr = srv.Addr
 		return nil
 	}
+	serverShutdown = func(context.Context, *http.Server) error { return nil }
 
 	logger := &test.FakeLogger{}
 	hand := handler.NewGinHandler(&test.FakeMetricService{}, handler.NewJSONMetricsPool())
@@ -86,10 +87,12 @@ func TestRun_OnStart_FailurePath_CoversFatal(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	engineRunner = func(r *gin.Engine, addr string) error {
+	serverRunner = func(srv *http.Server) error {
 		defer wg.Done()
 		return errors.New("bind failed")
 	}
+
+	serverShutdown = func(context.Context, *http.Server) error { return nil }
 
 	logger := &test.FakeLogger{}
 
@@ -123,17 +126,14 @@ func sprintf(format string, v ...any) string {
 }
 
 func resetHooksOverrides() func() {
-	prevRun := engineRunner
+	prevFactory := serverFactory
+	prevRun := serverRunner
+	prevShutdown := serverShutdown
 	return func() {
-		engineRunner = prevRun
+		serverFactory = prevFactory
+		serverRunner = prevRun
+		serverShutdown = prevShutdown
 	}
-}
-
-func swapEngineRunner(t *testing.T, fn func(*gin.Engine, string) error) (restore func()) {
-	t.Helper()
-	old := engineRunner
-	engineRunner = fn
-	return func() { engineRunner = old }
 }
 
 func TestNewEngine_ServesHTTP(t *testing.T) {
@@ -166,18 +166,20 @@ func TestEngineRunner_CallsStubWithArgs(t *testing.T) {
 
 	var called int32
 	var gotAddr string
-	restore := swapEngineRunner(t, func(e *gin.Engine, addr string) error {
+	restore := swapServerRunner(t, func(srv *http.Server) error {
 		atomic.AddInt32(&called, 1)
-		if e == nil {
-			t.Errorf("expected non-nil *gin.Engine")
+		if srv == nil {
+			t.Errorf("expected non-nil *http.Server")
+			return errors.New("nil server passed to runner")
 		}
-		gotAddr = addr
+
+		gotAddr = srv.Addr
 		return nil
 	})
 	defer restore()
 
-	r := gin.New()
-	if err := engineRunner(r, ":1234"); err != nil {
+	srv := serverFactory(":1234", gin.New())
+	if err := serverRunner(srv); err != nil {
 		t.Fatalf("stub should return nil, got err=%v", err)
 	}
 
@@ -200,8 +202,15 @@ func TestEngineRunner_DefaultCallsRun_AddrInUse(t *testing.T) {
 	port := ln.Addr().(*net.TCPAddr).Port
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 
-	r := gin.New()
-	if err := engineRunner(r, addr); err == nil {
+	srv := serverFactory(addr, gin.New())
+	if err := serverRunner(srv); err == nil {
 		t.Fatalf("expected error (addr in use), got nil")
 	}
+}
+
+func swapServerRunner(t *testing.T, fn func(*http.Server) error) (restore func()) {
+	t.Helper()
+	old := serverRunner
+	serverRunner = fn
+	return func() { serverRunner = old }
 }

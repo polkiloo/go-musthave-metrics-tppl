@@ -20,8 +20,9 @@ GOBUILDCACHE_DIR ?= $(CACHE_PREFIX)/build
 BIN_DIR 	     ?= bin
 
 .PHONY: race-docker ensure-dirs coverage ensure-profile-dir \
-        profile-network profile-collector profile-storage lint \
-		reset-gen generate build-agent build-server
+profile-network profile-collector profile-storage lint \
+reset-gen generate build-agent build-server gracefull-test
+
 
 race-docker: ensure-dirs
 	docker pull $(GOIMAGE)
@@ -129,6 +130,9 @@ lint:
 	@set -eu; \
 		GOFLAGS='' go vet ./...; \
 		GOFLAGS='' go run ./cmd/linter ./...
+
+gracefull-test:
+	@GOFLAGS='' go test -v -tags=integration ./test/gracefull -count=1 -run .
 
 reset-gen:
         @GOFLAGS='' go run ./cmd/reset -dir .
