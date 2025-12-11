@@ -24,7 +24,9 @@ var defaultCT = []string{"application/json", "text/html"}
 // Middleware provides transparent request decompression and response compression for Gin.
 func Middleware(cpr Compressor, opts ...Option) gin.HandlerFunc {
 	if cpr == nil {
-		panic("compression: compressor must not be nil")
+		return func(c *gin.Context) {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "compression middleware is not configured"})
+		}
 	}
 	cfg := settings{allowedCT: defaultCT}
 	for _, o := range opts {

@@ -13,6 +13,7 @@ import (
 )
 
 // AppConfig contains runtime configuration for the agent application.
+// generate:reset
 type AppConfig struct {
 	Host           string
 	Port           int
