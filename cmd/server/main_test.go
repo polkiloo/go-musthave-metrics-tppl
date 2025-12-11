@@ -39,6 +39,7 @@ func TestMain_WiringIsValid(t *testing.T) {
 		server.Module,
 		compression.Module,
 		sign.Module,
+		server.ModuleCrypto,
 		fx.NopLogger,
 	)
 	if err != nil {

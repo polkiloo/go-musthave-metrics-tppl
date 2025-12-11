@@ -1,6 +1,7 @@
 package agentcfg
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ var defaultAppConfig = agent.AppConfig{
 	ReportInterval: agent.DefaultAppReportInterval,
 	LoopIterations: agent.DefaultLoopIterations,
 	RateLimit:      agent.DefaultRateLimit,
+	CryptoKeyPath:  agent.DefaultCryptoKeyPath,
 }
 
 func TestBuildAgentConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
@@ -136,10 +138,11 @@ func TestBuildAgentConfig_EnvBeatsFlags_ForEachField(t *testing.T) {
 
 func TestBuildAgentConfig_MixedPerField_EnvPortFlagsHost(t *testing.T) {
 	withEnvMap(map[string]string{
-		EnvAddressVarName:   ":7070",
-		EnvRateLimitVarName: "",
+		EnvAddressVarName:       ":7070",
+		EnvRateLimitVarName:     "",
+		EnvCryptoKeyPathVarName: "",
 	}, func() {
-		withArgs([]string{"-a", "flag-host:9999", "-l", "8"}, func() {
+		withArgs([]string{"-a", "flag-host:9999", "-l", "8", "-crypto-key", "flag-public.pem"}, func() {
 			got, err := buildAgentConfig()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -152,6 +155,29 @@ func TestBuildAgentConfig_MixedPerField_EnvPortFlagsHost(t *testing.T) {
 			}
 			if got.RateLimit != 8 {
 				t.Fatalf("want ratelimit from flags 8, got %d", got.RateLimit)
+			}
+			if got.CryptoKeyPath != "flag-public.pem" {
+				t.Fatalf("want crypto key from flags 'flag-public.pem', got %q", got.CryptoKeyPath)
+			}
+		})
+	})
+}
+
+func TestBuildAgentConfig_DefaultCryptoKeyEmpty(t *testing.T) {
+	withEnvMap(map[string]string{
+		EnvAddressVarName:        "",
+		EnvReportIntervalVarName: "",
+		EnvPollIntervalVarName:   "",
+		EnvRateLimitVarName:      "",
+		EnvCryptoKeyPathVarName:  "",
+	}, func() {
+		withArgs(nil, func() {
+			got, err := buildAgentConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.CryptoKeyPath != "" {
+				t.Fatalf("default crypto key must be empty, got %q", got.CryptoKeyPath)
 			}
 		})
 	})
@@ -173,6 +199,82 @@ func TestBuildAgentConfig_FlagEmptyHost_KeepDefaultHost_PortFromFlag(t *testing.
 			}
 			if got.Port != 9000 {
 				t.Fatalf("want port=9000 from flags, got %d", got.Port)
+			}
+		})
+	})
+}
+
+func TestBuildAgentConfig_ConfigFileAppliedBeforeEnvAndFlags(t *testing.T) {
+	cfgFile := t.TempDir() + "/config.json"
+	err := os.WriteFile(cfgFile, []byte(`{
+                "address": "file-host:9000",
+                "report_interval": "3s",
+                "poll_interval": "2s",
+                "key": "filekey",
+                "rate_limit": 5,
+                "crypto_key": "file-key.pem"
+        }`), 0o600)
+	if err != nil {
+		t.Fatalf("write temp config: %v", err)
+	}
+
+	withEnvMap(map[string]string{
+		EnvAddressVarName:        "",
+		EnvReportIntervalVarName: "",
+		EnvPollIntervalVarName:   "",
+		EnvRateLimitVarName:      "",
+		EnvCryptoKeyPathVarName:  "",
+		"CONFIG":                 cfgFile,
+	}, func() {
+		withArgs(nil, func() {
+			got, err := buildAgentConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.Host != "file-host" || got.Port != 9000 {
+				t.Fatalf("want address from file file-host:9000, got %s:%d", got.Host, got.Port)
+			}
+			if got.ReportInterval != 3*time.Second {
+				t.Fatalf("want report interval 3s from file, got %v", got.ReportInterval)
+			}
+			if got.PollInterval != 2*time.Second {
+				t.Fatalf("want poll interval 2s from file, got %v", got.PollInterval)
+			}
+			if got.SignKey != "filekey" {
+				t.Fatalf("want key from file, got %q", got.SignKey)
+			}
+			if got.RateLimit != 5 {
+				t.Fatalf("want rate limit 5 from file, got %d", got.RateLimit)
+			}
+			if got.CryptoKeyPath != "file-key.pem" {
+				t.Fatalf("want crypto key from file, got %q", got.CryptoKeyPath)
+			}
+		})
+	})
+}
+
+func TestBuildAgentConfig_EnvOverridesConfigFile(t *testing.T) {
+	cfgFile := t.TempDir() + "/config.json"
+	err := os.WriteFile(cfgFile, []byte(`{"address": "file-host:9000", "report_interval": "3s"}`), 0o600)
+	if err != nil {
+		t.Fatalf("write temp config: %v", err)
+	}
+
+	withEnvMap(map[string]string{
+		EnvAddressVarName:        "env-host:8085",
+		EnvReportIntervalVarName: "8",
+		"CONFIG":                 cfgFile,
+	}, func() {
+		withArgs([]string{"-a", "flag-host:9999"}, func() {
+			got, err := buildAgentConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.Host != "env-host" || got.Port != 8085 {
+				t.Fatalf("env should override config file, got %s:%d", got.Host, got.Port)
+			}
+			if got.ReportInterval != 8*time.Second {
+				t.Fatalf("env report interval should override file, got %v", got.ReportInterval)
 			}
 		})
 	})

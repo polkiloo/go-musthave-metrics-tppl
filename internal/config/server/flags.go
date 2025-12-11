@@ -18,6 +18,8 @@ type ServerFlags struct {
 	SignKey       string
 	auditFile     string
 	auditURL      string
+	CryptoKeyPath string
+	ConfigPath    string
 }
 
 var (
@@ -37,6 +39,9 @@ func parseFlags() (ServerFlags, error) {
 	fs.String("k", "", "key for hashing")
 	fs.String("audit-file", "", "path to audit log file")
 	fs.String("audit-url", "", "remote URL for audit events")
+	fs.String("crypto-key", "", "path to private key for decryption")
+	fs.String("c", "", "path to configuration file")
+	fs.String("config", "", "path to configuration file")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		return ServerFlags{}, err
@@ -76,6 +81,16 @@ func parseFlags() (ServerFlags, error) {
 	}
 	if set["audit-url"] {
 		flags.auditURL = fs.Lookup("audit-url").Value.String()
+	}
+
+	if set["crypto-key"] {
+		flags.CryptoKeyPath = fs.Lookup("crypto-key").Value.String()
+	}
+
+	if set["config"] {
+		flags.ConfigPath = fs.Lookup("config").Value.String()
+	} else if set["c"] {
+		flags.ConfigPath = fs.Lookup("c").Value.String()
 	}
 	return flags, nil
 }

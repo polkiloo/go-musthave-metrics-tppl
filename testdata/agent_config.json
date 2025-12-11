@@ -1,0 +1,8 @@
+{
+  "address": "file-agent:12345",
+  "report_interval": "5s",
+  "poll_interval": "2s",
+  "key": "agent-file-key",
+  "rate_limit": 7,
+  "crypto_key": "/path/to/agent.pem"
+}

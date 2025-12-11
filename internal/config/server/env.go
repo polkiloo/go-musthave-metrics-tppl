@@ -15,6 +15,7 @@ const (
 	EnvKeyVarName           = "KEY"
 	EnvAuditFileVarName     = "AUDIT_FILE"
 	EnvAuditURLVarName      = "AUDIT_URL"
+	EnvCryptoKeyVarName     = "CRYPTO_KEY"
 )
 
 type ServerEnvVars struct {
@@ -26,6 +27,7 @@ type ServerEnvVars struct {
 	SignKey       string
 	AuditFile     string
 	AuditURL      string
+	CryptoKey     string
 }
 
 func getEnvVars() (ServerEnvVars, error) {
@@ -54,5 +56,6 @@ func getEnvVars() (ServerEnvVars, error) {
 		SignKey:       os.Getenv(EnvKeyVarName),
 		AuditFile:     os.Getenv(EnvAuditFileVarName),
 		AuditURL:      os.Getenv(EnvAuditURLVarName),
+		CryptoKey:     os.Getenv(EnvCryptoKeyVarName),
 	}, nil
 }
