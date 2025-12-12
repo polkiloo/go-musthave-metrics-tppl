@@ -100,9 +100,17 @@ func sendMetrics(ctx context.Context, senders []sender.SenderInterface, metrics 
 	}
 	if len(metrics) == 0 {
 		for _, s := range senders {
-			sender := s
+			sdr := s
+
+			send := func(ms []*models.Metrics) {
+				if cs, ok := sdr.(sender.ContextualSender); ok {
+					cs.SendWithContext(ctx, ms)
+					return
+				}
+				sdr.Send(ms)
+			}
 			select {
-			case tasks <- func() { sender.Send(nil) }:
+			case tasks <- func() { send(nil) }:
 			case <-ctx.Done():
 				close(tasks)
 				wg.Wait()
@@ -113,9 +121,16 @@ func sendMetrics(ctx context.Context, senders []sender.SenderInterface, metrics 
 		for _, m := range metrics {
 			for _, s := range senders {
 				metric := m
-				sender := s
+				sdr := s
+				send := func(ms []*models.Metrics) {
+					if cs, ok := sdr.(sender.ContextualSender); ok {
+						cs.SendWithContext(ctx, ms)
+						return
+					}
+					sdr.Send(ms)
+				}
 				select {
-				case tasks <- func() { sender.Send([]*models.Metrics{metric}) }:
+				case tasks <- func() { send([]*models.Metrics{metric}) }:
 				case <-ctx.Done():
 					close(tasks)
 					wg.Wait()

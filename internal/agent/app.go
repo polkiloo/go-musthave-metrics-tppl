@@ -6,6 +6,7 @@ import (
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/collector"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/compression"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/cryptoutil"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sender"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
@@ -22,6 +23,7 @@ type AppConfig struct {
 	LoopIterations int
 	SignKey        sign.SignKey
 	RateLimit      int
+	CryptoKeyPath  string
 }
 
 const (
@@ -37,6 +39,8 @@ const (
 	DefaultLoopIterations = 0
 	// DefaultRateLimit controls concurrency for metric sending.
 	DefaultRateLimit = 1
+	// DefaultCryptoKeyPath is the default path to the encryption key file.
+	DefaultCryptoKeyPath = ""
 )
 
 // RunAgent launches the agent loop when the fx application starts.
@@ -52,7 +56,17 @@ func RunAgent(
 			go AgentLoopSleep(ctx, collector, senders, cfg)
 			return nil
 		},
-		OnStop: func(context.Context) error {
+		OnStop: func(stopCtx context.Context) error {
+			flushTimeout := cfg.ReportInterval
+			if flushTimeout <= 0 || flushTimeout > 2*time.Second {
+				flushTimeout = 2 * time.Second
+			}
+
+			flushCtx, cancel := context.WithTimeout(stopCtx, flushTimeout)
+			defer cancel()
+
+			metrics := collector.Snapshot()
+			sendMetrics(flushCtx, senders, metrics, cfg.RateLimit)
 			return nil
 		},
 	})
@@ -78,11 +92,11 @@ var ModuleCollector = fx.Module("collector",
 )
 
 // ProvideSender constructs both plain-text and JSON senders for the agent.
-func ProvideSender(cfg AppConfig, l logger.Logger, c compression.Compressor) ([]sender.SenderInterface, error) {
+func ProvideSender(cfg AppConfig, l logger.Logger, c compression.Compressor, enc cryptoutil.Encryptor) ([]sender.SenderInterface, error) {
 	senders := make([]sender.SenderInterface, 0, 2)
 	senders = append(senders,
 		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l, cfg.SignKey),
-		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c, cfg.SignKey),
+		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c, cfg.SignKey, enc),
 	)
 	return senders, nil
 }
