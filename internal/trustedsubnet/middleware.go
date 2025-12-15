@@ -1,7 +1,6 @@
 package trustedsubnet
 
 import (
-	"net"
 	"net/http"
 	"strings"
 
@@ -28,13 +27,13 @@ func shouldValidate(r *http.Request) bool {
 // NewMiddleware builds a Gin middleware that validates X-Real-IP against the configured trusted subnet.
 // When the subnet is empty, no middleware is returned and validation is skipped.
 func NewMiddleware(cfg *server.AppConfig, l logger.Logger) (gin.HandlerFunc, error) {
-	if cfg == nil || cfg.TrustedSubnet == "" {
-		return nil, nil
-	}
-
-	_, cidr, err := net.ParseCIDR(cfg.TrustedSubnet)
+	validator, err := newValidator(cfg)
 	if err != nil {
 		return nil, err
+	}
+
+	if validator == nil {
+		return nil, nil
 	}
 
 	return func(c *gin.Context) {
@@ -43,9 +42,7 @@ func NewMiddleware(cfg *server.AppConfig, l logger.Logger) (gin.HandlerFunc, err
 			return
 		}
 
-		ipStr := c.Request.Header.Get("X-Real-IP")
-		ip := net.ParseIP(ipStr)
-		if ip == nil || !cidr.Contains(ip) {
+		if !validator.contains(c.Request.Header.Get("X-Real-IP")) {
 			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}

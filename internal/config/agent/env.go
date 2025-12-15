@@ -14,6 +14,7 @@ const (
 	EnvKeyVarName            = "KEY"
 	EnvRateLimitVarName      = "RATE_LIMIT"
 	EnvCryptoKeyPathVarName  = "CRYPTO_KEY"
+	EnvGRPCAddressVarName    = "GRPC_ADDRESS"
 )
 
 type AgentEnvVars struct {
@@ -24,15 +25,21 @@ type AgentEnvVars struct {
 	SignKey           *string
 	RateLimit         *int
 	CryptoKeyPath     *string
+	GRPCHost          string
+	GRPCPort          *int
 }
 
 func getEnvVars() (AgentEnvVars, error) {
 	var e AgentEnvVars
 
 	hp, _ := commoncfg.ReadHostPortEnv(EnvAddressVarName)
+	grpcHP, _ := commoncfg.ReadHostPortEnv(EnvGRPCAddressVarName)
 
 	e.Host = hp.Host
 	e.Port = hp.Port
+
+	e.GRPCHost = grpcHP.Host
+	e.GRPCPort = grpcHP.Port
 
 	if v, ok := os.LookupEnv(EnvReportIntervalVarName); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {

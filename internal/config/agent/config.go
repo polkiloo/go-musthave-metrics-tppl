@@ -21,6 +21,8 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		LoopIterations: agent.DefaultLoopIterations,
 		RateLimit:      agent.DefaultRateLimit,
 		CryptoKeyPath:  agent.DefaultCryptoKeyPath,
+		GRPCHost:       agent.DefaultGRPCHost,
+		GRPCPort:       agent.DefaultGRPCPort,
 	}
 	cfg := defaultAppConfig
 
@@ -47,6 +49,19 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		}
 		if hp.Port != nil {
 			cfg.Port = *hp.Port
+		}
+	}
+
+	if fileCfg.GRPCAddress != nil {
+		hp, err := commoncfg.ParseAddressFlag(*fileCfg.GRPCAddress, true)
+		if err != nil {
+			return cfg, fmt.Errorf("config grpc_address: %w", err)
+		}
+		if hp.Host != "" {
+			cfg.GRPCHost = hp.Host
+		}
+		if hp.Port != nil {
+			cfg.GRPCPort = *hp.Port
 		}
 	}
 
@@ -88,6 +103,18 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		cfg.Port = *envVars.Port
 	} else if flagArgs.addressFlag.Port != nil {
 		cfg.Port = *flagArgs.addressFlag.Port
+	}
+
+	if envVars.GRPCHost != "" {
+		cfg.GRPCHost = envVars.GRPCHost
+	} else if flagArgs.GRPCAddress.Host != "" {
+		cfg.GRPCHost = flagArgs.GRPCAddress.Host
+	}
+
+	if envVars.GRPCPort != nil {
+		cfg.GRPCPort = *envVars.GRPCPort
+	} else if flagArgs.GRPCAddress.Port != nil {
+		cfg.GRPCPort = *flagArgs.GRPCAddress.Port
 	}
 
 	if envVars.ReportIntervalSec != nil {

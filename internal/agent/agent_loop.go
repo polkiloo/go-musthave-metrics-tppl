@@ -87,56 +87,42 @@ func sendMetrics(ctx context.Context, senders []sender.SenderInterface, metrics 
 	if limit <= 0 {
 		limit = 1
 	}
-	tasks := make(chan func())
+	if len(senders) == 0 {
+		return
+	}
+
+	workers := limit
+	if workers > len(senders) {
+		workers = len(senders)
+	}
+
+	tasks := make(chan sender.SenderInterface)
 	var wg sync.WaitGroup
-	for i := 0; i < limit; i++ {
+	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for task := range tasks {
-				task()
+			for sdr := range tasks {
+				if cs, ok := sdr.(sender.ContextualSender); ok {
+					cs.SendWithContext(ctx, metrics)
+					continue
+				}
+				if len(metrics) > 0 {
+					sdr.SendBatch(metrics)
+				} else {
+					sdr.Send(nil)
+				}
 			}
 		}()
 	}
-	if len(metrics) == 0 {
-		for _, s := range senders {
-			sdr := s
 
-			send := func(ms []*models.Metrics) {
-				if cs, ok := sdr.(sender.ContextualSender); ok {
-					cs.SendWithContext(ctx, ms)
-					return
-				}
-				sdr.Send(ms)
-			}
-			select {
-			case tasks <- func() { send(nil) }:
-			case <-ctx.Done():
-				close(tasks)
-				wg.Wait()
-				return
-			}
-		}
-	} else {
-		for _, m := range metrics {
-			for _, s := range senders {
-				metric := m
-				sdr := s
-				send := func(ms []*models.Metrics) {
-					if cs, ok := sdr.(sender.ContextualSender); ok {
-						cs.SendWithContext(ctx, ms)
-						return
-					}
-					sdr.Send(ms)
-				}
-				select {
-				case tasks <- func() { send([]*models.Metrics{metric}) }:
-				case <-ctx.Done():
-					close(tasks)
-					wg.Wait()
-					return
-				}
-			}
+	for _, sdr := range senders {
+		select {
+		case tasks <- sdr:
+		case <-ctx.Done():
+			close(tasks)
+			wg.Wait()
+			return
 		}
 	}
 	close(tasks)

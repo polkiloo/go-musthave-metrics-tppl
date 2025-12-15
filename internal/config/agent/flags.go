@@ -19,10 +19,12 @@ type AgentFlags struct {
 	RateLimit         *int
 	CryptoKey         string
 	ConfigPath        string
+	GRPCAddress       commoncfg.AddressFlagValue
 }
 
 var (
-	defaultAddress = agent.DefaultAppHost + ":" + strconv.Itoa(agent.DefaultAppPort)
+	defaultAddress     = agent.DefaultAppHost + ":" + strconv.Itoa(agent.DefaultAppPort)
+	defaultGRPCAddress = agent.DefaultGRPCHost + ":" + strconv.Itoa(agent.DefaultGRPCPort)
 )
 
 type ReportSecondsFlagValue struct{ Sec *int }
@@ -31,6 +33,7 @@ type SignKeyFlagValue struct{ SignKey string }
 type RateLimitFlagValue struct{ Rate *int }
 type CryptoKeyFlagValue struct{ Path string }
 type ConfigPathFlagValue struct{ Path string }
+type GRPCAddressFlagValue struct{ commoncfg.AddressFlagValue }
 
 func ParseReportSecondsFlag(value string, present bool) (ReportSecondsFlagValue, error) {
 	if !present {
@@ -91,6 +94,14 @@ func flagsValueMapper(dst *AgentFlags, v commoncfg.FlagValue) error {
 			dst.addressFlag.Port = t.Port
 		}
 		return nil
+	case GRPCAddressFlagValue:
+		if t.Host != "" {
+			dst.GRPCAddress.Host = t.Host
+		}
+		if t.Port != nil {
+			dst.GRPCAddress.Port = t.Port
+		}
+		return nil
 	case ReportSecondsFlagValue:
 		if t.Sec != nil {
 			dst.ReportIntervalSec = t.Sec
@@ -135,6 +146,7 @@ func parseFlags() (AgentFlags, error) {
 	fs.String("crypto-key", "", "path to public key for encryption")
 	fs.String("c", "", "path to configuration file")
 	fs.String("config", "", "path to configuration file")
+	fs.String("g", defaultGRPCAddress, "gRPC endpoint, e.g., localhost:3200 or :3200")
 
 	return commoncfg.
 		NewDispatcher[AgentFlags](fs, flagsValueMapper).
@@ -155,6 +167,26 @@ func parseFlags() (AgentFlags, error) {
 				return nil, nil
 			}
 			return ConfigPathFlagValue{Path: v}, nil
+		}).
+		Handle("g", func(v string, present bool) (commoncfg.FlagValue, error) {
+			if !present {
+				return nil, nil
+			}
+			hp, err := commoncfg.ParseAddressFlag(v, true)
+			if err != nil {
+				return nil, err
+			}
+			return GRPCAddressFlagValue{hp}, nil
+		}).
+		Handle("grpc", func(v string, present bool) (commoncfg.FlagValue, error) {
+			if !present {
+				return nil, nil
+			}
+			hp, err := commoncfg.ParseAddressFlag(v, true)
+			if err != nil {
+				return nil, err
+			}
+			return GRPCAddressFlagValue{hp}, nil
 		}).
 		Parse(os.Args[1:])
 }

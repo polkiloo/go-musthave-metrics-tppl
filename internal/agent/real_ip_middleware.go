@@ -9,10 +9,27 @@ import (
 	"go.uber.org/fx"
 )
 
-var interfaceAddrs = net.InterfaceAddrs
+type realIPMiddleware struct {
+	interfaceAddrs func() ([]net.Addr, error)
+	ip             string
+}
 
-func resolveAgentIP() (string, error) {
-	addrs, err := interfaceAddrs()
+func newRealIPMiddleware(addrsFn func() ([]net.Addr, error)) (*realIPMiddleware, error) {
+	mw := &realIPMiddleware{interfaceAddrs: addrsFn}
+	ip, err := mw.resolveAgentIP()
+	if err != nil {
+		return nil, err
+	}
+	mw.ip = ip
+	return mw, nil
+}
+
+func NewRealIPMiddleware() (*realIPMiddleware, error) {
+	return newRealIPMiddleware(net.InterfaceAddrs)
+}
+
+func (m *realIPMiddleware) resolveAgentIP() (string, error) {
+	addrs, err := m.interfaceAddrs()
 	if err != nil {
 		return "", err
 	}
@@ -44,16 +61,19 @@ func resolveAgentIP() (string, error) {
 
 // ProvideRealIPMiddleware builds a RequestMiddleware that injects X-Real-IP header.
 func ProvideRealIPMiddleware() (sender.RequestMiddleware, error) {
-	ip, err := resolveAgentIP()
+	mw, err := NewRealIPMiddleware()
 	if err != nil {
 		return nil, err
 	}
+	return mw.Middleware(), nil
+}
 
+func (m *realIPMiddleware) Middleware() sender.RequestMiddleware {
 	return func(req *http.Request) {
 		if req != nil {
-			req.Header.Set("X-Real-IP", ip)
+			req.Header.Set("X-Real-IP", m.ip)
 		}
-	}, nil
+	}
 }
 
 // ModuleRequestMiddleware provides the request middleware via fx.

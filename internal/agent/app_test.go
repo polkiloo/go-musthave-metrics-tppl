@@ -46,16 +46,16 @@ func TestRunAgent_RegistersHooksAndStartsLoop_WithChan(t *testing.T) {
 	assert.NoError(t, lc.hooks[0].OnStop(context.Background()))
 }
 
-func TestProvideSender_ReturnsPlainAndJSON(t *testing.T) {
-	cfg := AppConfig{Host: "localhost", Port: 8080}
+func TestProvideSender_ReturnsPlainJSONAndGRPC(t *testing.T) {
+	cfg := AppConfig{Host: "localhost", Port: 8080, GRPCHost: "localhost", GRPCPort: DefaultGRPCPort}
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 	senders, err := ProvideSender(cfg, log, comp, nil, senderMiddlewareParam{})
 	if err != nil {
 		t.Fatalf("ProvideSender returned error: %v", err)
 	}
-	if len(senders) != 2 {
-		t.Fatalf("expected 2 senders, got %d", len(senders))
+	if len(senders) != 3 {
+		t.Fatalf("expected 3 senders, got %d", len(senders))
 	}
 
 	if gotType := reflect.TypeOf(senders[0]).String(); gotType != "*sender.PlainSender" {
@@ -64,6 +64,10 @@ func TestProvideSender_ReturnsPlainAndJSON(t *testing.T) {
 	if gotType := reflect.TypeOf(senders[1]).String(); gotType != "*sender.JSONSender" {
 		t.Errorf("expected second sender to be *sender.JSONSender, got %s", gotType)
 	}
+	if gotType := reflect.TypeOf(senders[2]).String(); gotType != "*sender.GRPCSender" {
+		t.Errorf("expected third sender to be *sender.GRPCSender, got %s", gotType)
+	}
+
 }
 
 func TestProvideAgentLoopConfig_CopiesFields(t *testing.T) {
