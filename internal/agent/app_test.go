@@ -50,7 +50,7 @@ func TestProvideSender_ReturnsPlainAndJSON(t *testing.T) {
 	cfg := AppConfig{Host: "localhost", Port: 8080}
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
-	senders, err := ProvideSender(cfg, log, comp, nil)
+	senders, err := ProvideSender(cfg, log, comp, nil, senderMiddlewareParam{})
 	if err != nil {
 		t.Fatalf("ProvideSender returned error: %v", err)
 	}

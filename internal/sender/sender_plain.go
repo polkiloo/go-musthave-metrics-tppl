@@ -36,10 +36,11 @@ type PlainSender struct {
 	client  *http.Client
 	log     logger.Logger
 	signKey sign.SignKey
+	mw      RequestMiddleware
 }
 
 // NewPlainSender constructs a PlainSender for communicating with the server.
-func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logger, k sign.SignKey) *PlainSender {
+func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logger, k sign.SignKey, mw RequestMiddleware) *PlainSender {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
@@ -48,6 +49,7 @@ func NewPlainSender(baseURL string, port int, client *http.Client, l logger.Logg
 		client:  client,
 		log:     l,
 		signKey: k,
+		mw:      mw,
 	}
 }
 
@@ -108,6 +110,10 @@ func (s *PlainSender) postMetric(ctx context.Context, m *models.Metrics) {
 		req.Header.Set("HashSHA256", sign.NewSignerSHA256().Sign(nil, s.signKey))
 	}
 
+	if s.mw != nil {
+		s.mw(req)
+	}
+
 	resp, err := doRequest(ctx, s.client, req, retrier.DefaultDelays)
 	if err != nil {
 		if s.log != nil {
@@ -146,4 +152,4 @@ func plainValue(m *models.Metrics) (string, bool) {
 	}
 }
 
-var _ SenderInterface = NewPlainSender("", 0, nil, nil, "")
+var _ SenderInterface = NewPlainSender("", 0, nil, nil, "", nil)

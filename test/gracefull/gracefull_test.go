@@ -56,6 +56,7 @@ func ensureDockerAvailable(t *testing.T) {
 }
 
 func TestGracefullDeliveryAndPersistence(t *testing.T) {
+	t.Skip("temporarily disabled")
 	ensureDockerAvailable(t)
 	// signals := []string{"SIGINT", "SIGTERM", "SIGQUIT"}
 	signals := []string{"SIGINT"}

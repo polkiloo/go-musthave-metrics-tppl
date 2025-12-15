@@ -91,12 +91,17 @@ var ModuleCollector = fx.Module("collector",
 	),
 )
 
+type senderMiddlewareParam struct {
+	fx.In
+	Middleware sender.RequestMiddleware `optional:"true"`
+}
+
 // ProvideSender constructs both plain-text and JSON senders for the agent.
-func ProvideSender(cfg AppConfig, l logger.Logger, c compression.Compressor, enc cryptoutil.Encryptor) ([]sender.SenderInterface, error) {
+func ProvideSender(cfg AppConfig, l logger.Logger, c compression.Compressor, enc cryptoutil.Encryptor, p senderMiddlewareParam) ([]sender.SenderInterface, error) {
 	senders := make([]sender.SenderInterface, 0, 2)
 	senders = append(senders,
-		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l, cfg.SignKey),
-		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c, cfg.SignKey, enc),
+		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l, cfg.SignKey, p.Middleware),
+		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c, cfg.SignKey, enc, p.Middleware),
 	)
 	return senders, nil
 }

@@ -25,6 +25,7 @@ type AppConfig struct {
 	AuditFile       string
 	AuditURL        string
 	CryptoKeyPath   string
+	TrustedSubnet   string
 }
 
 const (

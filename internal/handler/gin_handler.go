@@ -96,12 +96,16 @@ func register(p struct {
 	Clock audit.Clock          `optional:"true"`
 	Pool  db.Pool              `optional:"true"`
 	D     cryptoutil.Decryptor `optional:"true"`
+	TM    gin.HandlerFunc      `name:"trusted-subnet-middleware" optional:"true"`
 }) {
 	p.H.SetLogger(p.L)
 	p.R.Use(logger.Middleware(p.L))
 	p.R.Use(cryptoutil.Middleware(p.D))
 	p.R.Use(sign.Middleware(p.S, p.K))
 	p.R.Use(compression.Middleware(p.C))
+	if p.TM != nil {
+		p.R.Use(p.TM)
+	}
 	if p.A != nil {
 		p.R.Use(audit.Middleware(p.A, p.L, p.Clock))
 	}

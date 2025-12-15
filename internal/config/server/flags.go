@@ -20,6 +20,7 @@ type ServerFlags struct {
 	auditURL      string
 	CryptoKeyPath string
 	ConfigPath    string
+	TrustedSubnet string
 }
 
 var (
@@ -42,6 +43,8 @@ func parseFlags() (ServerFlags, error) {
 	fs.String("crypto-key", "", "path to private key for decryption")
 	fs.String("c", "", "path to configuration file")
 	fs.String("config", "", "path to configuration file")
+	fs.String("t", "", "trusted subnet in CIDR notation")
+	fs.String("trusted-subnet", "", "trusted subnet in CIDR notation")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		return ServerFlags{}, err
@@ -85,6 +88,12 @@ func parseFlags() (ServerFlags, error) {
 
 	if set["crypto-key"] {
 		flags.CryptoKeyPath = fs.Lookup("crypto-key").Value.String()
+	}
+
+	if set["t"] {
+		flags.TrustedSubnet = fs.Lookup("t").Value.String()
+	} else if set["trusted-subnet"] {
+		flags.TrustedSubnet = fs.Lookup("trusted-subnet").Value.String()
 	}
 
 	if set["config"] {

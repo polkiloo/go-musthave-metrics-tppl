@@ -176,3 +176,15 @@ func TestGetEnvVars_Audit(t *testing.T) {
 		})
 	})
 }
+
+func TestGetEnvVars_TrustedSubnet(t *testing.T) {
+	withEnv(EnvTrustedSubnet, "192.168.1.0/24", func() {
+		got, err := getEnvVars()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.TrustedSubnet != "192.168.1.0/24" {
+			t.Fatalf("trusted subnet mismatch: %q", got.TrustedSubnet)
+		}
+	})
+}

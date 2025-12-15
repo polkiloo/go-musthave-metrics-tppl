@@ -40,10 +40,11 @@ type JSONSender struct {
 	comp    compression.Compressor
 	signKey sign.SignKey
 	enc     cryptoutil.Encryptor
+	mw      RequestMiddleware
 }
 
 // NewJSONSender constructs a JSONSender for communicating with the server.
-func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logger, c compression.Compressor, k sign.SignKey, e cryptoutil.Encryptor) *JSONSender {
+func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logger, c compression.Compressor, k sign.SignKey, e cryptoutil.Encryptor, mw RequestMiddleware) *JSONSender {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
@@ -54,6 +55,7 @@ func NewJSONSender(baseURL string, port int, client *http.Client, l logger.Logge
 		comp:    c,
 		signKey: k,
 		enc:     e,
+		mw:      mw,
 	}
 }
 
@@ -211,6 +213,9 @@ func (s *JSONSender) buildRequest(ctx context.Context, body []byte) (*http.Reque
 	if s.signKey != "" {
 		req.Header.Set("HashSHA256", sign.NewSignerSHA256().Sign(body, s.signKey))
 	}
+	if s.mw != nil {
+		s.mw(req)
+	}
 	return req, nil
 }
 
@@ -255,8 +260,11 @@ func (s *JSONSender) buildBatchRequest(ctx context.Context, body []byte) (*http.
 	if s.signKey != "" {
 		req.Header.Set("HashSHA256", sign.NewSignerSHA256().Sign(body, s.signKey))
 	}
+	if s.mw != nil {
+		s.mw(req)
+	}
 	return req, nil
 
 }
 
-var _ SenderInterface = NewJSONSender("", 0, nil, nil, nil, "", nil)
+var _ SenderInterface = NewJSONSender("", 0, nil, nil, nil, "", nil, nil)
