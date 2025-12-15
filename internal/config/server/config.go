@@ -1,7 +1,11 @@
 package servercfg
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/audit"
+	commoncfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/common"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
@@ -14,12 +18,68 @@ func buildServerConfig() (server.AppConfig, error) {
 		StoreInterval:   server.DefaultStoreInterval,
 		FileStoragePath: server.DefaultFileStoragePath,
 		Restore:         server.DefaultRestore,
+		CryptoKeyPath:   server.DefaultCryptoKeyPath,
 	}
 
 	cfg := defaultAppConfig
 
 	envVars, _ := getEnvVars()
 	flagArgs, _ := parseFlags()
+
+	configPath := os.Getenv("CONFIG")
+	if configPath == "" {
+		configPath = flagArgs.ConfigPath
+	}
+
+	var fileCfg serverFileConfig
+	if err := commoncfg.LoadConfigFile(configPath, &fileCfg); err != nil {
+		return cfg, err
+	}
+
+	if fileCfg.Address != nil {
+		hp, err := commoncfg.ParseAddressFlag(*fileCfg.Address, true)
+		if err != nil {
+			return cfg, fmt.Errorf("config address: %w", err)
+		}
+		if hp.Host != "" {
+			cfg.Host = hp.Host
+		}
+		if hp.Port != nil {
+			cfg.Port = *hp.Port
+		}
+	}
+
+	if fileCfg.StoreInterval != nil {
+		interval, err := parseDurationSeconds(*fileCfg.StoreInterval)
+		if err != nil {
+			return cfg, fmt.Errorf("config store_interval: %w", err)
+		}
+		cfg.StoreInterval = interval
+	}
+
+	if fileCfg.StoreFile != nil {
+		cfg.FileStoragePath = *fileCfg.StoreFile
+	}
+
+	if fileCfg.Restore != nil {
+		cfg.Restore = *fileCfg.Restore
+	}
+
+	if fileCfg.Key != nil {
+		cfg.SignKey = sign.SignKey(*fileCfg.Key)
+	}
+
+	if fileCfg.AuditFile != nil {
+		cfg.AuditFile = *fileCfg.AuditFile
+	}
+
+	if fileCfg.AuditURL != nil {
+		cfg.AuditURL = *fileCfg.AuditURL
+	}
+
+	if fileCfg.CryptoKey != nil {
+		cfg.CryptoKeyPath = *fileCfg.CryptoKey
+	}
 
 	if envVars.Host != "" {
 		cfg.Host = envVars.Host
@@ -68,6 +128,13 @@ func buildServerConfig() (server.AppConfig, error) {
 	} else if flagArgs.auditURL != "" {
 		cfg.AuditURL = flagArgs.auditURL
 	}
+
+	if envVars.CryptoKey != "" {
+		cfg.CryptoKeyPath = envVars.CryptoKey
+	} else if flagArgs.CryptoKeyPath != "" {
+		cfg.CryptoKeyPath = flagArgs.CryptoKeyPath
+	}
+
 	return cfg, nil
 }
 

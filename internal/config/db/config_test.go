@@ -67,6 +67,59 @@ func TestModule_ProvidesConfig(t *testing.T) {
 	})
 }
 
+func TestBuildDBConfig_ConfigFileUsedWhenNoEnvOrFlag(t *testing.T) {
+	cfgFile := t.TempDir() + "/config.json"
+	if err := os.WriteFile(cfgFile, []byte(`{"database_dsn":"file-dsn"}`), 0o600); err != nil {
+		t.Fatalf("write temp config: %v", err)
+	}
+
+	withEnv("CONFIG", cfgFile, func() {
+		withArgs(nil, func() {
+			cfg, err := buildDBConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if cfg.DSN != "file-dsn" {
+				t.Fatalf("expected DSN from file, got %q", cfg.DSN)
+			}
+		})
+	})
+}
+
+func TestBuildDBConfig_EnvOverridesConfigFile(t *testing.T) {
+	cfgFile := t.TempDir() + "/config.json"
+	if err := os.WriteFile(cfgFile, []byte(`{"database_dsn":"file-dsn"}`), 0o600); err != nil {
+		t.Fatalf("write temp config: %v", err)
+	}
+
+	withEnv("CONFIG", cfgFile, func() {
+		withEnv(EnvDSNVarName, "env-dsn", func() {
+			cfg, err := buildDBConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if cfg.DSN != "env-dsn" {
+				t.Fatalf("env should override file, got %q", cfg.DSN)
+			}
+		})
+	})
+}
+
+func TestBuildDBConfig_FromTestdataFile(t *testing.T) {
+	cfgPath := "../../../testdata/db_config.json"
+	withEnv("CONFIG", cfgPath, func() {
+		withArgs(nil, func() {
+			cfg, err := buildDBConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if cfg.DSN != "dsn-from-testdata" {
+				t.Fatalf("expected DSN from testdata, got %q", cfg.DSN)
+			}
+		})
+	})
+}
+
 func withEnv(key, val string, fn func()) {
 	old, had := os.LookupEnv(key)
 	_ = os.Setenv(key, val)

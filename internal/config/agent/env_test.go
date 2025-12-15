@@ -241,3 +241,27 @@ func TestGetEnvVars_RateLimit_Invalid_Ignored(t *testing.T) {
 		})
 	}
 }
+
+func TestGetEnvVars_CryptoKey_IgnoredWhenEmpty(t *testing.T) {
+	withEnvMap(map[string]string{EnvCryptoKeyPathVarName: ""}, func() {
+		got, err := getEnvVars()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.CryptoKeyPath != nil {
+			t.Fatalf("empty crypto key must be ignored, got %+v", *got.CryptoKeyPath)
+		}
+	})
+}
+
+func TestGetEnvVars_CryptoKey_SetWhenProvided(t *testing.T) {
+	withEnvMap(map[string]string{EnvCryptoKeyPathVarName: "/path/to/public.pem"}, func() {
+		got, err := getEnvVars()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.CryptoKeyPath == nil || *got.CryptoKeyPath != "/path/to/public.pem" {
+			t.Fatalf("crypto key mismatch: %+v", got.CryptoKeyPath)
+		}
+	})
+}

@@ -1,9 +1,12 @@
 package agentcfg
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/agent"
+	commoncfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/common"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
 	"go.uber.org/fx"
 )
@@ -17,11 +20,63 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		ReportInterval: agent.DefaultAppReportInterval,
 		LoopIterations: agent.DefaultLoopIterations,
 		RateLimit:      agent.DefaultRateLimit,
+		CryptoKeyPath:  agent.DefaultCryptoKeyPath,
 	}
 	cfg := defaultAppConfig
 
 	envVars, _ := getEnvVars()
 	flagArgs, _ := parseFlags()
+
+	configPath := os.Getenv("CONFIG")
+	if configPath == "" {
+		configPath = flagArgs.ConfigPath
+	}
+
+	var fileCfg agentFileConfig
+	if err := commoncfg.LoadConfigFile(configPath, &fileCfg); err != nil {
+		return cfg, err
+	}
+
+	if fileCfg.Address != nil {
+		hp, err := commoncfg.ParseAddressFlag(*fileCfg.Address, true)
+		if err != nil {
+			return cfg, fmt.Errorf("config address: %w", err)
+		}
+		if hp.Host != "" {
+			cfg.Host = hp.Host
+		}
+		if hp.Port != nil {
+			cfg.Port = *hp.Port
+		}
+	}
+
+	if fileCfg.ReportInterval != nil {
+		d, err := parseDuration(*fileCfg.ReportInterval)
+		if err != nil {
+			return cfg, fmt.Errorf("config report_interval: %w", err)
+		}
+		cfg.ReportInterval = d
+	}
+
+	if fileCfg.PollInterval != nil {
+		d, err := parseDuration(*fileCfg.PollInterval)
+		if err != nil {
+			return cfg, fmt.Errorf("config poll_interval: %w", err)
+		}
+		cfg.PollInterval = d
+	}
+
+	if fileCfg.Key != nil {
+		cfg.SignKey = sign.SignKey(*fileCfg.Key)
+	}
+
+	if fileCfg.RateLimit != nil {
+		cfg.RateLimit = *fileCfg.RateLimit
+	}
+
+	if fileCfg.CryptoKey != nil {
+		cfg.CryptoKeyPath = *fileCfg.CryptoKey
+	}
 
 	if envVars.Host != "" {
 		cfg.Host = envVars.Host
@@ -59,6 +114,11 @@ func buildAgentConfig() (agent.AppConfig, error) {
 		cfg.RateLimit = *flagArgs.RateLimit
 	}
 
+	if envVars.CryptoKeyPath != nil {
+		cfg.CryptoKeyPath = *envVars.CryptoKeyPath
+	} else if flagArgs.CryptoKey != "" {
+		cfg.CryptoKeyPath = flagArgs.CryptoKey
+	}
 	return cfg, nil
 }
 

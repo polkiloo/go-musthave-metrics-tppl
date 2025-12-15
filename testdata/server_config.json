@@ -1,0 +1,11 @@
+{
+  "address": "file-server:9000",
+  "restore": true,
+  "store_interval": "12s",
+  "store_file": "/tmp/server.db",
+  "database_dsn": "file-dsn",
+  "key": "server-file-key",
+  "audit_file": "audit.log",
+  "audit_url": "http://audit.local",
+  "crypto_key": "/path/to/server.pem"
+}

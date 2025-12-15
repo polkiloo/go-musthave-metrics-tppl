@@ -13,6 +13,7 @@ const (
 	EnvPollIntervalVarName   = "POLL_INTERVAL"
 	EnvKeyVarName            = "KEY"
 	EnvRateLimitVarName      = "RATE_LIMIT"
+	EnvCryptoKeyPathVarName  = "CRYPTO_KEY"
 )
 
 type AgentEnvVars struct {
@@ -22,6 +23,7 @@ type AgentEnvVars struct {
 	PollIntervalSec   *int
 	SignKey           *string
 	RateLimit         *int
+	CryptoKeyPath     *string
 }
 
 func getEnvVars() (AgentEnvVars, error) {
@@ -44,6 +46,9 @@ func getEnvVars() (AgentEnvVars, error) {
 	}
 	if v, ok := os.LookupEnv(EnvKeyVarName); ok {
 		e.SignKey = &v
+	}
+	if v, ok := os.LookupEnv(EnvCryptoKeyPathVarName); ok && v != "" {
+		e.CryptoKeyPath = &v
 	}
 	if v, ok := os.LookupEnv(EnvRateLimitVarName); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
