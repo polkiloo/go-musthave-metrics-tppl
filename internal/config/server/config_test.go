@@ -22,6 +22,9 @@ func TestBuildServerConfig_Default_WhenNoEnvNoFlags(t *testing.T) {
 			if cfg.Host != server.DefaultAppHost {
 				t.Fatalf("want default host %q, got %q", server.DefaultAppHost, cfg.Host)
 			}
+			if cfg.TrustedSubnet != "" {
+				t.Fatalf("expected empty trusted subnet by default, got %q", cfg.TrustedSubnet)
+			}
 		})
 	})
 }
@@ -35,6 +38,20 @@ func TestBuildServerConfig_EnvAddressWins(t *testing.T) {
 			}
 			if cfg.Host != "env-host" {
 				t.Fatalf("env ADDRESS must win; got host=%q", cfg.Host)
+			}
+		})
+	})
+}
+
+func TestBuildServerConfig_TrustedSubnetFlag(t *testing.T) {
+	withEnv(EnvTrustedSubnet, "", func() {
+		withArgs([]string{"-t", "172.16.0.0/12"}, func() {
+			cfg, err := buildServerConfig()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if cfg.TrustedSubnet != "172.16.0.0/12" {
+				t.Fatalf("want trusted subnet from flag, got %q", cfg.TrustedSubnet)
 			}
 		})
 	})
@@ -145,7 +162,8 @@ func TestBuildServerConfig_ConfigFileAppliedBeforeEnvAndFlags(t *testing.T) {
                 "key": "filekey",
                 "audit_file": "/tmp/audit.log",
                 "audit_url": "https://file.example",
-                "crypto_key": "/tmp/key.pem"
+                "crypto_key": "/tmp/key.pem",
+				"trusted_subnet": "10.0.0.0/16"
         }`), 0o600); err != nil {
 		t.Fatalf("write temp config: %v", err)
 	}
@@ -181,6 +199,9 @@ func TestBuildServerConfig_ConfigFileAppliedBeforeEnvAndFlags(t *testing.T) {
 				if cfg.CryptoKeyPath != "/tmp/key.pem" {
 					t.Fatalf("want crypto key from file, got %q", cfg.CryptoKeyPath)
 				}
+				if cfg.TrustedSubnet != "10.0.0.0/16" {
+					t.Fatalf("want trusted subnet from file, got %q", cfg.TrustedSubnet)
+				}
 			})
 		})
 	})
@@ -195,17 +216,22 @@ func TestBuildServerConfig_EnvOverridesConfigFile(t *testing.T) {
 	withEnv("CONFIG", tmpFile, func() {
 		withEnv(EnvAddressVarName, "env-host:8081", func() {
 			withEnv(EnvStoreIntervalVarName, strconv.Itoa(20), func() {
-				withArgs([]string{"-a", "flag-host:7777"}, func() {
-					cfg, err := buildServerConfig()
-					if err != nil {
-						t.Fatalf("unexpected error: %v", err)
-					}
-					if cfg.Host != "env-host" || cfg.Port != 8081 {
-						t.Fatalf("env should override config file, got %s:%d", cfg.Host, cfg.Port)
-					}
-					if cfg.StoreInterval != 20 {
-						t.Fatalf("env store interval should override file, got %d", cfg.StoreInterval)
-					}
+				withEnv(EnvTrustedSubnet, "127.0.0.0/8", func() {
+					withArgs([]string{"-a", "flag-host:7777"}, func() {
+						cfg, err := buildServerConfig()
+						if err != nil {
+							t.Fatalf("unexpected error: %v", err)
+						}
+						if cfg.Host != "env-host" || cfg.Port != 8081 {
+							t.Fatalf("env should override config file, got %s:%d", cfg.Host, cfg.Port)
+						}
+						if cfg.StoreInterval != 20 {
+							t.Fatalf("env store interval should override file, got %d", cfg.StoreInterval)
+						}
+						if cfg.TrustedSubnet != "127.0.0.0/8" {
+							t.Fatalf("env trusted subnet should override others, got %q", cfg.TrustedSubnet)
+						}
+					})
 				})
 			})
 		})

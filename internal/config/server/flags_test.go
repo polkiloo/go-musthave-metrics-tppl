@@ -173,3 +173,15 @@ func TestParseFlags_AuditFlags(t *testing.T) {
 		}
 	})
 }
+
+func TestParseFlags_TrustedSubnet(t *testing.T) {
+	withArgs([]string{"-t", "192.168.0.0/16"}, func() {
+		got, err := parseFlags()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.TrustedSubnet != "192.168.0.0/16" {
+			t.Fatalf("trusted subnet mismatch: %q", got.TrustedSubnet)
+		}
+	})
+}

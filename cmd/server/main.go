@@ -18,6 +18,7 @@ import (
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/trustedsubnet"
 	"go.uber.org/fx"
 )
 
@@ -45,6 +46,7 @@ func main() {
 		sign.Module,
 		audit.Module,
 		server.ModuleCrypto,
+		trustedsubnet.Module,
 	)
 
 	if err := run(ctx, app); err != nil {

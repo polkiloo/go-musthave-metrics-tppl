@@ -16,6 +16,7 @@ type serverFileConfig struct {
 	AuditFile     *string `json:"audit_file"`
 	AuditURL      *string `json:"audit_url"`
 	CryptoKey     *string `json:"crypto_key"`
+	TrustedSubnet *string `json:"trusted_subnet"`
 }
 
 func parseDurationSeconds(raw string) (int, error) {

@@ -16,6 +16,7 @@ const (
 	EnvAuditFileVarName     = "AUDIT_FILE"
 	EnvAuditURLVarName      = "AUDIT_URL"
 	EnvCryptoKeyVarName     = "CRYPTO_KEY"
+	EnvTrustedSubnet        = "TRUSTED_SUBNET"
 )
 
 type ServerEnvVars struct {
@@ -28,6 +29,7 @@ type ServerEnvVars struct {
 	AuditFile     string
 	AuditURL      string
 	CryptoKey     string
+	TrustedSubnet string
 }
 
 func getEnvVars() (ServerEnvVars, error) {
@@ -57,5 +59,6 @@ func getEnvVars() (ServerEnvVars, error) {
 		AuditFile:     os.Getenv(EnvAuditFileVarName),
 		AuditURL:      os.Getenv(EnvAuditURLVarName),
 		CryptoKey:     os.Getenv(EnvCryptoKeyVarName),
+		TrustedSubnet: os.Getenv(EnvTrustedSubnet),
 	}, nil
 }

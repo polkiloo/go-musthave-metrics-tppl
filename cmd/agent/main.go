@@ -35,6 +35,7 @@ func main() {
 		agent.ModuleLoopConfig,
 		compression.Module,
 		agent.ModuleEncryption,
+		agent.ModuleRequestMiddleware,
 	)
 
 	if err := run(ctx, app); err != nil {

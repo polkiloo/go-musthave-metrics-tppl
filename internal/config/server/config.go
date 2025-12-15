@@ -19,6 +19,7 @@ func buildServerConfig() (server.AppConfig, error) {
 		FileStoragePath: server.DefaultFileStoragePath,
 		Restore:         server.DefaultRestore,
 		CryptoKeyPath:   server.DefaultCryptoKeyPath,
+		TrustedSubnet:   "",
 	}
 
 	cfg := defaultAppConfig
@@ -81,6 +82,10 @@ func buildServerConfig() (server.AppConfig, error) {
 		cfg.CryptoKeyPath = *fileCfg.CryptoKey
 	}
 
+	if fileCfg.TrustedSubnet != nil {
+		cfg.TrustedSubnet = *fileCfg.TrustedSubnet
+	}
+
 	if envVars.Host != "" {
 		cfg.Host = envVars.Host
 	} else if flagArgs.addressFlag.Host != "" {
@@ -133,6 +138,12 @@ func buildServerConfig() (server.AppConfig, error) {
 		cfg.CryptoKeyPath = envVars.CryptoKey
 	} else if flagArgs.CryptoKeyPath != "" {
 		cfg.CryptoKeyPath = flagArgs.CryptoKeyPath
+	}
+
+	if envVars.TrustedSubnet != "" {
+		cfg.TrustedSubnet = envVars.TrustedSubnet
+	} else if flagArgs.TrustedSubnet != "" {
+		cfg.TrustedSubnet = flagArgs.TrustedSubnet
 	}
 
 	return cfg, nil

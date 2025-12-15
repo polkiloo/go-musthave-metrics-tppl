@@ -191,7 +191,8 @@ func Test_register_AddsMiddlewareAndRegisters(t *testing.T) {
 		Clock audit.Clock          `optional:"true"`
 		Pool  db.Pool              `optional:"true"`
 		D     cryptoutil.Decryptor `optional:"true"`
-	}{R: r, H: h, L: l, C: c, S: sign.NewSignerSHA256(), K: "", D: nil})
+		TM    gin.HandlerFunc      `name:"trusted-subnet-middleware" optional:"true"`
+	}{R: r, H: h, L: l, C: c, S: sign.NewSignerSHA256(), K: "", D: nil, TM: nil})
 
 	if len(r.Handlers) == 0 {
 		t.Fatalf("expected global middleware to be added")
