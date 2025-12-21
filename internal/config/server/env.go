@@ -16,6 +16,8 @@ const (
 	EnvAuditFileVarName     = "AUDIT_FILE"
 	EnvAuditURLVarName      = "AUDIT_URL"
 	EnvCryptoKeyVarName     = "CRYPTO_KEY"
+	EnvTrustedSubnet        = "TRUSTED_SUBNET"
+	EnvGRPCAddressVarName   = "GRPC_ADDRESS"
 )
 
 type ServerEnvVars struct {
@@ -28,10 +30,14 @@ type ServerEnvVars struct {
 	AuditFile     string
 	AuditURL      string
 	CryptoKey     string
+	TrustedSubnet string
+	GRPCHost      string
+	GRPCPort      *int
 }
 
 func getEnvVars() (ServerEnvVars, error) {
 	hp, _ := commoncfg.ReadHostPortEnv(EnvAddressVarName)
+	grpcHP, _ := commoncfg.ReadHostPortEnv(EnvGRPCAddressVarName)
 
 	var interval *int
 	if v := os.Getenv(EnvStoreIntervalVarName); v != "" {
@@ -57,5 +63,8 @@ func getEnvVars() (ServerEnvVars, error) {
 		AuditFile:     os.Getenv(EnvAuditFileVarName),
 		AuditURL:      os.Getenv(EnvAuditURLVarName),
 		CryptoKey:     os.Getenv(EnvCryptoKeyVarName),
+		TrustedSubnet: os.Getenv(EnvTrustedSubnet),
+		GRPCHost:      grpcHP.Host,
+		GRPCPort:      grpcHP.Port,
 	}, nil
 }

@@ -24,6 +24,8 @@ type AppConfig struct {
 	SignKey        sign.SignKey
 	RateLimit      int
 	CryptoKeyPath  string
+	GRPCHost       string
+	GRPCPort       int
 }
 
 const (
@@ -41,6 +43,10 @@ const (
 	DefaultRateLimit = 1
 	// DefaultCryptoKeyPath is the default path to the encryption key file.
 	DefaultCryptoKeyPath = ""
+	// DefaultGRPCHost is the default gRPC server host the agent connects to.
+	DefaultGRPCHost = "localhost"
+	// DefaultGRPCPort is the default gRPC server port the agent connects to.
+	DefaultGRPCPort = 3200
 )
 
 // RunAgent launches the agent loop when the fx application starts.
@@ -91,13 +97,38 @@ var ModuleCollector = fx.Module("collector",
 	),
 )
 
-// ProvideSender constructs both plain-text and JSON senders for the agent.
-func ProvideSender(cfg AppConfig, l logger.Logger, c compression.Compressor, enc cryptoutil.Encryptor) ([]sender.SenderInterface, error) {
-	senders := make([]sender.SenderInterface, 0, 2)
+type senderMiddlewareParam struct {
+	fx.In
+	Middleware sender.RequestMiddleware `optional:"true"`
+}
+
+// ProvideSender constructs both plain-text, JSON and gRPC senders for the agent.
+func ProvideSender(cfg AppConfig, l logger.Logger, c compression.Compressor, enc cryptoutil.Encryptor, p senderMiddlewareParam) ([]sender.SenderInterface, error) {
+	senders := make([]sender.SenderInterface, 0, 3)
+	resolver, err := NewRealIPMiddleware()
+	if err != nil {
+		l.WriteError("resolve agent ip failed", "error", err)
+	}
+
+	if p.Middleware == nil && resolver != nil {
+		p.Middleware = resolver.Middleware()
+	}
+
+	ip := ""
+	if resolver != nil {
+		ip = resolver.ip
+	}
+
 	senders = append(senders,
-		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l, cfg.SignKey),
-		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c, cfg.SignKey, enc),
+		sender.NewPlainSender(cfg.Host, cfg.Port, nil, l, cfg.SignKey, p.Middleware),
+		sender.NewJSONSender(cfg.Host, cfg.Port, nil, l, c, cfg.SignKey, enc, p.Middleware),
 	)
+
+	if grpcSender, err := sender.NewGRPCSender(cfg.GRPCHost, cfg.GRPCPort, l, ip); err == nil {
+		senders = append(senders, grpcSender)
+	} else {
+		l.WriteError("grpc sender init failed", "error", err)
+	}
 	return senders, nil
 }
 

@@ -7,5 +7,6 @@
   "key": "server-file-key",
   "audit_file": "audit.log",
   "audit_url": "http://audit.local",
-  "crypto_key": "/path/to/server.pem"
+  "crypto_key": "/path/to/server.pem",
+  "trusted_subnet": "10.0.0.0/24"
 }

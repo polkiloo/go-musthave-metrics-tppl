@@ -20,10 +20,13 @@ type ServerFlags struct {
 	auditURL      string
 	CryptoKeyPath string
 	ConfigPath    string
+	TrustedSubnet string
+	grpcAddress   commoncfg.AddressFlagValue
 }
 
 var (
 	defaultAddress       = server.DefaultAppHost + ":" + strconv.Itoa(server.DefaultAppPort)
+	defaultGRPCAddress   = server.DefaultGRPCHost + ":" + strconv.Itoa(server.DefaultGRPCPort)
 	defaultStoreInterval = server.DefaultStoreInterval
 	defaultFileStorage   = server.DefaultFileStoragePath
 	defaultRestore       = server.DefaultRestore
@@ -33,6 +36,7 @@ func parseFlags() (ServerFlags, error) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.String("a", defaultAddress, "HTTP endpoint, e.g., localhost:8080 or :8080")
+	fs.String("g", defaultGRPCAddress, "gRPC endpoint, e.g., localhost:3200 or :3200")
 	fs.Int("i", defaultStoreInterval, "store interval in seconds")
 	fs.String("f", defaultFileStorage, "path to file for metrics storage")
 	fs.Bool("r", defaultRestore, "restore metrics from file on start")
@@ -42,6 +46,9 @@ func parseFlags() (ServerFlags, error) {
 	fs.String("crypto-key", "", "path to private key for decryption")
 	fs.String("c", "", "path to configuration file")
 	fs.String("config", "", "path to configuration file")
+	fs.String("t", "", "trusted subnet in CIDR notation")
+	fs.String("trusted-subnet", "", "trusted subnet in CIDR notation")
+	fs.String("grpc", defaultGRPCAddress, "gRPC endpoint, e.g., localhost:3200 or :3200")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		return ServerFlags{}, err
@@ -57,6 +64,19 @@ func parseFlags() (ServerFlags, error) {
 			return ServerFlags{}, err
 		}
 		flags.addressFlag = hp
+	}
+	if set["g"] {
+		hp, err := commoncfg.ParseAddressFlag(fs.Lookup("g").Value.String(), true)
+		if err != nil {
+			return ServerFlags{}, err
+		}
+		flags.grpcAddress = hp
+	} else if set["grpc"] {
+		hp, err := commoncfg.ParseAddressFlag(fs.Lookup("grpc").Value.String(), true)
+		if err != nil {
+			return ServerFlags{}, err
+		}
+		flags.grpcAddress = hp
 	}
 	if set["i"] {
 		v, _ := strconv.Atoi(fs.Lookup("i").Value.String())
@@ -85,6 +105,12 @@ func parseFlags() (ServerFlags, error) {
 
 	if set["crypto-key"] {
 		flags.CryptoKeyPath = fs.Lookup("crypto-key").Value.String()
+	}
+
+	if set["t"] {
+		flags.TrustedSubnet = fs.Lookup("t").Value.String()
+	} else if set["trusted-subnet"] {
+		flags.TrustedSubnet = fs.Lookup("trusted-subnet").Value.String()
 	}
 
 	if set["config"] {

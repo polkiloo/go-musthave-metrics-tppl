@@ -57,7 +57,7 @@ func TestJSONSender_Send_SendsAll(t *testing.T) {
 	host, port := hostPortFromServer(t, ts)
 	log := &test.FakeLogger{}
 	comp := compression.NewGzip(compression.BestSpeed)
-	s := sender.NewJSONSender(host, port, ts.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp, "", nil, nil)
 
 	c := int64(5)
 	g := 1.23
@@ -108,7 +108,7 @@ func TestJSONSender_NonJSONContentType_Logged(t *testing.T) {
 	host, port := hostPortFromServer(t, ts)
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
-	s := sender.NewJSONSender(host, port, ts.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp, "", nil, nil)
 
 	g := 1.0
 	s.Send([]*models.Metrics{{ID: "Alloc", MType: models.GaugeType, Value: &g}})
@@ -137,7 +137,7 @@ func TestJSONSender_ClientError_Logged(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 
-	s := sender.NewJSONSender("127.0.0.1", 65535, cl, log, comp, "", nil)
+	s := sender.NewJSONSender("127.0.0.1", 65535, cl, log, comp, "", nil, nil)
 
 	g := 1.0
 	s.Send([]*models.Metrics{{ID: "Alloc", MType: models.GaugeType, Value: &g}})
@@ -169,7 +169,7 @@ func TestJSONSender_MarshalError_Logged(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 
-	s := sender.NewJSONSender("localhost", 1, cl, log, comp, "", nil)
+	s := sender.NewJSONSender("localhost", 1, cl, log, comp, "", nil, nil)
 
 	nan := math.NaN()
 	s.Send([]*models.Metrics{{ID: "Alloc", MType: models.GaugeType, Value: &nan}})
@@ -197,7 +197,7 @@ func TestJSONSender_Send_RespectsClientTimeout(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 
-	s := sender.NewJSONSender(host, port, cl, log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, cl, log, comp, "", nil, nil)
 
 	val := 1.0
 	start := time.Now()
@@ -237,7 +237,7 @@ func TestJSONSender_BodyShape_Minimal(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := compression.NewGzip(compression.BestSpeed)
 
-	s := sender.NewJSONSender(host, port, ts.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp, "", nil, nil)
 
 	delta := int64(7)
 	gauge := 3.14
@@ -270,7 +270,7 @@ func TestJSONSender_Send_Success_NoCompression(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 	host, port := hostPortFromServer(t, srv)
-	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil, nil)
 	c := int64(5)
 	g := 1.23
 	mCounter := &models.Metrics{ID: "PollCount", MType: models.CounterType, Delta: &c}
@@ -299,7 +299,7 @@ func TestJSONSender_Send_Success_WithGzip(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := compression.NewGzip(gzip.BestSpeed)
 	host, port := hostPortFromServer(t, srv)
-	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil, nil)
 
 	var counterValue int64 = 123
 	counter, _ := models.NewCounterMetrics("counter", &counterValue)
@@ -324,7 +324,7 @@ func TestJSONSender_Send_MarshalError(t *testing.T) {
 	comp := test.NewFakeCompressor("gzip")
 
 	host, port := hostPortFromServer(t, srv)
-	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil, nil)
 
 	badValue := math.NaN()
 	bad, _ := models.NewGaugeMetrics("nan", &badValue)
@@ -341,7 +341,7 @@ func TestJSONSender_Send_BuildRequestError(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 
-	s := sender.NewJSONSender("http://%zz", 0, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender("http://%zz", 0, srv.Client(), log, comp, "", nil, nil)
 
 	var counterValue int64 = 123
 	counter, _ := models.NewCounterMetrics("counter", &counterValue)
@@ -362,7 +362,7 @@ func TestJSONSender_Send_DoError(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 
-	s := sender.NewJSONSender("http://example.invalid", 0, cl, log, comp, "", nil)
+	s := sender.NewJSONSender("http://example.invalid", 0, cl, log, comp, "", nil, nil)
 	var counterValue int64 = 123
 	counter, _ := models.NewCounterMetrics("counter", &counterValue)
 
@@ -381,7 +381,7 @@ func TestJSONSender_Send_UnexpectedContentType(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 	host, port := hostPortFromServer(t, srv)
-	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil, nil)
 
 	var counterValue int64 = 123
 	counter, _ := models.NewCounterMetrics("counter", &counterValue)
@@ -401,7 +401,7 @@ func TestJSONSender_Send_UnexpectedStatus(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 	host, port := hostPortFromServer(t, srv)
-	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil, nil)
 
 	var counterValue int64 = 123
 	counter, _ := models.NewCounterMetrics("counter", &counterValue)
@@ -428,7 +428,7 @@ func TestJSONSender_Send_Headers_Golden(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := test.NewFakeCompressor("gzip")
 	host, port := hostPortFromServer(t, srv)
-	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil, nil)
 
 	var counterValue int64 = 123
 	counter, _ := models.NewCounterMetrics("counter", &counterValue)
@@ -461,7 +461,7 @@ func BenchmarkJSONSender_Send_Gzip(b *testing.B) {
 	log := &test.FakeLogger{}
 	comp := compression.NewGzip(compression.BestSpeed)
 	host, port := hostPortFromServer(b, srv)
-	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil, nil)
 
 	data := bytes.Repeat([]byte("abcdefghijklmnopqrstuvwxyz0123456789"), 1024) // ~64KiB
 	_ = data
@@ -496,7 +496,7 @@ func TestJSONSender_Send_BodyIsGzipCompressed(t *testing.T) {
 	log := &test.FakeLogger{}
 	comp := compression.NewGzip(compression.BestSpeed)
 	host, port := hostPortFromServer(t, srv)
-	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, srv.Client(), log, comp, "", nil, nil)
 
 	const n = 100
 	metrics := make([]*models.Metrics, 0, n)
@@ -565,7 +565,7 @@ func TestJSONSender_SendBatch_SendsAll(t *testing.T) {
 	host, port := hostPortFromServer(t, ts)
 	log := &test.FakeLogger{}
 	comp := compression.NewGzip(compression.BestSpeed)
-	s := sender.NewJSONSender(host, port, ts.Client(), log, comp, "", nil)
+	s := sender.NewJSONSender(host, port, ts.Client(), log, comp, "", nil, nil)
 
 	c := int64(5)
 	g := 1.23

@@ -13,6 +13,7 @@ type agentFileConfig struct {
 	Key            *string `json:"key"`
 	RateLimit      *int    `json:"rate_limit"`
 	CryptoKey      *string `json:"crypto_key"`
+	GRPCAddress    *string `json:"grpc_address"`
 }
 
 func parseDuration(raw string) (time.Duration, error) {

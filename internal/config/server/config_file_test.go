@@ -100,6 +100,9 @@ func TestBuildServerConfig_FromTestdataFile(t *testing.T) {
 			if cfg.CryptoKeyPath != "/path/to/server.pem" {
 				t.Fatalf("want crypto key path from file, got %q", cfg.CryptoKeyPath)
 			}
+			if cfg.TrustedSubnet != "10.0.0.0/24" {
+				t.Fatalf("want trusted subnet from file, got %q", cfg.TrustedSubnet)
+			}
 		})
 	})
 }

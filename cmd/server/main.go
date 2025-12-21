@@ -13,11 +13,13 @@ import (
 	dbcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/db"
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/grpcserver"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/service"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/sign"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/trustedsubnet"
 	"go.uber.org/fx"
 )
 
@@ -45,6 +47,8 @@ func main() {
 		sign.Module,
 		audit.Module,
 		server.ModuleCrypto,
+		trustedsubnet.Module,
+		grpcserver.Module,
 	)
 
 	if err := run(ctx, app); err != nil {

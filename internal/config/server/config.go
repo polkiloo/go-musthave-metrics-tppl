@@ -19,6 +19,9 @@ func buildServerConfig() (server.AppConfig, error) {
 		FileStoragePath: server.DefaultFileStoragePath,
 		Restore:         server.DefaultRestore,
 		CryptoKeyPath:   server.DefaultCryptoKeyPath,
+		TrustedSubnet:   "",
+		GRPCHost:        server.DefaultGRPCHost,
+		GRPCPort:        server.DefaultGRPCPort,
 	}
 
 	cfg := defaultAppConfig
@@ -46,6 +49,19 @@ func buildServerConfig() (server.AppConfig, error) {
 		}
 		if hp.Port != nil {
 			cfg.Port = *hp.Port
+		}
+	}
+
+	if fileCfg.GRPCAddress != nil {
+		hp, err := commoncfg.ParseAddressFlag(*fileCfg.GRPCAddress, true)
+		if err != nil {
+			return cfg, fmt.Errorf("config grpc_address: %w", err)
+		}
+		if hp.Host != "" {
+			cfg.GRPCHost = hp.Host
+		}
+		if hp.Port != nil {
+			cfg.GRPCPort = *hp.Port
 		}
 	}
 
@@ -81,6 +97,10 @@ func buildServerConfig() (server.AppConfig, error) {
 		cfg.CryptoKeyPath = *fileCfg.CryptoKey
 	}
 
+	if fileCfg.TrustedSubnet != nil {
+		cfg.TrustedSubnet = *fileCfg.TrustedSubnet
+	}
+
 	if envVars.Host != "" {
 		cfg.Host = envVars.Host
 	} else if flagArgs.addressFlag.Host != "" {
@@ -91,6 +111,18 @@ func buildServerConfig() (server.AppConfig, error) {
 		cfg.Port = *envVars.Port
 	} else if flagArgs.addressFlag.Port != nil {
 		cfg.Port = *flagArgs.addressFlag.Port
+	}
+
+	if envVars.GRPCHost != "" {
+		cfg.GRPCHost = envVars.GRPCHost
+	} else if flagArgs.grpcAddress.Host != "" {
+		cfg.GRPCHost = flagArgs.grpcAddress.Host
+	}
+
+	if envVars.GRPCPort != nil {
+		cfg.GRPCPort = *envVars.GRPCPort
+	} else if flagArgs.grpcAddress.Port != nil {
+		cfg.GRPCPort = *flagArgs.grpcAddress.Port
 	}
 
 	if envVars.StoreInterval != nil {
@@ -133,6 +165,12 @@ func buildServerConfig() (server.AppConfig, error) {
 		cfg.CryptoKeyPath = envVars.CryptoKey
 	} else if flagArgs.CryptoKeyPath != "" {
 		cfg.CryptoKeyPath = flagArgs.CryptoKeyPath
+	}
+
+	if envVars.TrustedSubnet != "" {
+		cfg.TrustedSubnet = envVars.TrustedSubnet
+	} else if flagArgs.TrustedSubnet != "" {
+		cfg.TrustedSubnet = flagArgs.TrustedSubnet
 	}
 
 	return cfg, nil

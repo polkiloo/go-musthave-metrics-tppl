@@ -18,6 +18,7 @@ import (
 	dbcfg "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/db"
 	config "github.com/polkiloo/go-musthave-metrics-tppl/internal/config/server"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/db"
+	"github.com/polkiloo/go-musthave-metrics-tppl/internal/grpcserver"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/handler"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/logger"
 	"github.com/polkiloo/go-musthave-metrics-tppl/internal/models"
@@ -40,6 +41,7 @@ func TestMain_WiringIsValid(t *testing.T) {
 		compression.Module,
 		sign.Module,
 		server.ModuleCrypto,
+		grpcserver.Module,
 		fx.NopLogger,
 	)
 	if err != nil {

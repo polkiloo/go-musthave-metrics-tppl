@@ -25,6 +25,9 @@ type AppConfig struct {
 	AuditFile       string
 	AuditURL        string
 	CryptoKeyPath   string
+	TrustedSubnet   string
+	GRPCHost        string
+	GRPCPort        int
 }
 
 const (
@@ -40,6 +43,10 @@ const (
 	DefaultRestore = true
 	// DefaultCryptoKeyPath is the default path for key used for encryption metrics.
 	DefaultCryptoKeyPath = ""
+	// DefaultGRPCHost is the default gRPC server host.
+	DefaultGRPCHost = "localhost"
+	// DefaultGRPCPort is the default gRPC server port.
+	DefaultGRPCPort = 3200
 )
 
 // DefaultAppConfig provides baseline server configuration values.
@@ -49,6 +56,8 @@ var DefaultAppConfig = AppConfig{
 	StoreInterval:   DefaultStoreInterval,
 	FileStoragePath: DefaultFileStoragePath,
 	Restore:         DefaultRestore,
+	GRPCHost:        DefaultGRPCHost,
+	GRPCPort:        DefaultGRPCPort,
 }
 
 func newEngine() *gin.Engine {
